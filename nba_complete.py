@@ -376,7 +376,13 @@ def health():
     })
 
 if __name__ == '__main__':
-    print("\n🌐 Server démarré sur: http://localhost:5000")
+    import os
+    
+    # Support pour déploiement (Render, Railway, etc.)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False') == 'True'
+    
+    print("\n🌐 Server démarré sur port:", port)
     print("\n📚 Endpoints disponibles:")
     print("   GET  /api/health - Status du système")
     print("   GET  /api/opportunities?min_edge=5.0 - Meilleures opportunités")
@@ -389,4 +395,4 @@ if __name__ == '__main__':
     print("✅ Ouvre advanced_interface.html dans ton navigateur")
     print("=" * 70 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug, host='0.0.0.0', port=port)
