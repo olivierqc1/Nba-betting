@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Statistical Betting Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            background: linear-gradient(135deg, #1e3c72 0%, #7e22ce 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 25px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.95;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .control-row label {
+            min-width: 150px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .control-row input {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 50px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+        }
+
+        .opportunities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(550px, 1fr));
+            gap: 30px;
+        }
+
+        .opportunity-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .opportunity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 25px;
+            padding-top: 10px;
+        }
+
+        .player-name {
+            font-size: 1.8em;
+            font-weight: 800;
+            color: #1e3c72;
+            margin-bottom: 5px;
+        }
+
+        .matchup {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .confidence-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 1em;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .recommendation-box {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+        }
+
+        .recommendation-box.under {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .rec-title {
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .rec-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .rec-stat-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95em;
+        }
+
+        .prediction-section {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .prediction-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #1e3c72;
+            margin-bottom: 15px;
+        }
+
+        .prediction-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            color: #667eea;
+        }
+
+        .prediction-details {
+            text-align: right;
+        }
+
+        .std-dev {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .conf-interval {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .regression-stats {
+            margin-top: 25px;
+        }
+
+        .regression-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1e3c72;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .model-quality {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .quality-metric {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+
+        .quality-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .quality-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+
+        .coefficients-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #e2e8f0;
+        }
+
+        .coef-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            font-weight: 700;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .coef-row {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .coef-row:last-child {
+            border-bottom: none;
+        }
+
+        .variable-name {
+            font-weight: 600;
+            color: #1e3c72;
+        }
+
+        .significant {
+            color: #10b981;
+            font-weight: 700;
+        }
+
+        .not-significant {
+            color: #ef4444;
+        }
+
+        .p-value-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .p-significant {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .p-not-significant {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 80px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            border: 3px solid #fcc;
+            color: #c33;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .opportunities-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 NBA Statistical Betting Analyzer</h1>
+            <p class="subtitle">Analyse statistique rigoureuse avec régression multiple, tests de significativité et calcul du rendement attendu</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Opportunités Trouvées</div>
+                    <div class="value" id="total-opps">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Edge Moyen</div>
+                    <div class="value" id="avg-edge">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Rendement Attendu</div>
+                    <div class="value" id="expected-return">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">R² Moyen</div>
+                    <div class="value" id="avg-r2">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 20px; color: #1e3c72;">⚙️ Paramètres d'Analyse</h2>
+            <div class="control-row">
+                <label>Edge Minimum (%):</label>
+                <input type="number" id="min-edge" value="5.0" min="0" max="20" step="0.5">
+            </div>
+            <button class="btn-primary" onclick="analyzeOpportunities()">
+                🔍 Analyser les Opportunités
+            </button>
+        </div>
+
+        <div id="content"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+
+        async function analyzeOpportunities() {
+            const content = document.getElementById('content');
+            const minEdge = document.getElementById('min-edge').value;
+            
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <h2>Analyse statistique en cours...</h2>
+                    <p>Construction des modèles de régression et calcul des opportunités</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_URL}/opportunities?min_edge=${minEdge}`);
+                const opportunities = await response.json();
+
+                if (opportunities.length === 0) {
+                    content.innerHTML = `
+                        <div class="loading">
+                            <h2>Aucune opportunité trouvée</h2>
+                            <p>Essayez de réduire l'edge minimum</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                updateGlobalStats(opportunities);
+                displayOpportunities(opportunities);
+
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h2>❌ Erreur de connexion</h2>
+                        <p>Impossible de se connecter au backend</p>
+                        <p><strong>Commande:</strong> python3 advanced_backend.py</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateGlobalStats(opportunities) {
+            document.getElementById('total-opps').textContent = opportunities.length;
+            
+            const avgEdge = opportunities.reduce((sum, opp) => 
+                sum + opp.recommendation.edge, 0) / opportunities.length;
+            document.getElementById('avg-edge').textContent = avgEdge.toFixed(2) + '%';
+            
+            const avgReturn = opportunities.reduce((sum, opp) => 
+                sum + opp.recommendation.expected_return, 0) / opportunities.length;
+            document.getElementById('expected-return').textContent = avgReturn.toFixed(2) + '%';
+            
+            const avgR2 = opportunities.reduce((sum, opp) => 
+                sum + opp.regression_stats.model_quality.r_squared, 0) / opportunities.length;
+            document.getElementById('avg-r2').textContent = avgR2.toFixed(3);
+        }
+
+        function displayOpportunities(opportunities) {
+            const html = `
+                <div class="opportunities-grid">
+                    ${opportunities.map(opp => createOpportunityCard(opp)).join('')}
+                </div>
+            `;
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function createOpportunityCard(opp) {
+            const betClass = opp.recommendation.bet === 'OVER' ? '' : 'under';
+            
+            return `
+                <div class="opportunity-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="player-name">${opp.player}</div>
+                            <div class="matchup">${opp.is_home ? 'vs' : '@'} ${opp.opponent}</div>
+                        </div>
+                        <div class="confidence-badge">
+                            ${opp.recommendation.confidence}% confiance
+                        </div>
+                    </div>
+
+                    <div class="recommendation-box ${betClass}">
+                        <div class="rec-title">
+                            ${opp.recommendation.bet} ${opp.betonline.line} points
+                        </div>
+                        <div class="rec-stats">
+                            <div class="rec-stat-item">
+                                <span>Edge:</span>
+                                <strong>+${opp.recommendation.edge}%</strong>
+                            </div>
+                            <div class="rec-stat-item">
+                                <span>Mise Kelly:</span>
+                                <strong>${opp.recommendation.kelly_stake}%</strong>
+                            </div>
+                            <div class="rec-stat-item">
+                                <span>Prob. Réelle:</span>
+                                <strong>${opp.probabilities[opp.recommendation.bet.toLowerCase()]}%</strong>
+                            </div>
+                            <div class="rec-stat-item">
+                                <span>Rendement:</span>
+                                <strong>+${opp.recommendation.expected_return}%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-section">
+                        <div class="prediction-title">📈 Prédiction du Modèle</div>
+                        <div class="prediction-main">
+                            <div class="prediction-value">${opp.prediction.points}</div>
+                            <div class="prediction-details">
+                                <div class="conf-interval">
+                                    IC 80%: ${opp.prediction.confidence_interval_80.low.toFixed(1)} - ${opp.prediction.confidence_interval_80.high.toFixed(1)}
+                                </div>
+                                <div class="std-dev">
+                                    σ = ${opp.prediction.std_dev}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="regression-stats">
+                        <div class="regression-title">
+                            📊 Statistiques de Régression
+                        </div>
+                        
+                        <div class="model-quality">
+                            <div class="quality-metric">
+                                <div class="quality-label">R²</div>
+                                <div class="quality-value">${opp.regression_stats.model_quality.r_squared.toFixed(3)}</div>
+                            </div>
+                            <div class="quality-metric">
+                                <div class="quality-label">R² Ajusté</div>
+                                <div class="quality-value">${opp.regression_stats.model_quality.adjusted_r_squared.toFixed(3)}</div>
+                            </div>
+                            <div class="quality-metric">
+                                <div class="quality-label">RMSE</div>
+                                <div class="quality-value">${opp.regression_stats.model_quality.rmse.toFixed(2)}</div>
+                            </div>
+                        </div>
+
+                        <div class="coefficients-table">
+                            <div class="coef-header">
+                                <div>Variable</div>
+                                <div>Coefficient</div>
+                                <div>Std Error</div>
+                                <div>t-stat</div>
+                                <div>p-value</div>
+                            </div>
+                            ${opp.regression_stats.coefficients.map(coef => `
+                                <div class="coef-row">
+                                    <div class="variable-name">${coef.variable}</div>
+                                    <div class="${coef.significant ? 'significant' : 'not-significant'}">
+                                        ${coef.coefficient.toFixed(3)}
+                                    </div>
+                                    <div>${coef.std_error.toFixed(3)}</div>
+                                    <div>${coef.t_stat.toFixed(2)}</div>
+                                    <div>
+                                        <span class="p-value-badge ${coef.significant ? 'p-significant' : 'p-not-significant'}">
+                                            ${coef.p_value < 0.001 ? '<0.001' : coef.p_value.toFixed(3)}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+ 
