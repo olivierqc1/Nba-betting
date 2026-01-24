@@ -1,15 +1,8 @@
-# Flask et CORS
 Flask==3.0.0
 Flask-Cors==4.0.0
-
-# Calculs scientifiques
-numpy==1.24.3
-pandas==2.0.3
-scipy==1.11.1
-
-# Machine Learning
-scikit-learn==1.3.0
-
-# Utilitaires
+numpy==1.26.4
+pandas==2.2.0
+scipy==1.12.0
+scikit-learn==1.4.0
 python-dateutil==2.8.2
-pytz==2023.3
+pytz==2024.1
