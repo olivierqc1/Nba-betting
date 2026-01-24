@@ -1,12 +1,1 @@
-# Crée runtime.txt
-echo "python-3.11" > runtime.txt
-
-# Commit et push
-git add runtime.txt
-git commit -m "Force Python 3.11 for Vercel"
-git push origin main
-```
-
-**Fichier `runtime.txt`:**
-```
 python-3.11
