@@ -339,7 +339,7 @@ class NBAAnalyzer:
                 'edge': round(edge, 3),
                 'recommendation': recommendation,
                 'confidence': 'HIGH' if abs(edge) >= 0.12 else 'MEDIUM' if abs(edge) >= 0.08 else 'LOW',
-                'kelly_criterion': round(edge * 2, 3) if abs(edge) >= 0.08 else 0  # Suggested bet size
+                'kelly_criterion': round(edge * 2, 3) if abs(edge) >= 0.08 else 0
             }
         
         result['status'] = 'SUCCESS'
@@ -348,6 +348,19 @@ class NBAAnalyzer:
 
 # Initialize analyzer
 analyzer = NBAAnalyzer()
+
+@app.route('/', methods=['GET'])
+def root():
+    """Route racine - redirige vers /api"""
+    return jsonify({
+        'message': 'NBA Betting Analyzer API',
+        'status': 'online',
+        'endpoints': {
+            'info': '/api',
+            'health': '/api/health',
+            'analyze': 'POST /api/analyze'
+        }
+    })
 
 @app.route('/api', methods=['GET'])
 def api_info():
@@ -420,4 +433,4 @@ def analyze_player():
         }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
