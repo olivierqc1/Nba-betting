@@ -146,30 +146,36 @@ class NBAAnalyzer:
         # Home games
         home_games = games_df[games_df['IS_HOME'] == True]
         if len(home_games) > 0:
+            home_avg = home_games['PTS'].mean()
+            home_std = home_games['PTS'].std()
             splits['home'] = {
-                'avg': round(home_games['PTS'].mean(), 1),
-                'std': round(home_games['PTS'].std(), 1),
-                'games': len(home_games)
+                'avg': round(float(home_avg), 1) if not pd.isna(home_avg) else 0.0,
+                'std': round(float(home_std), 1) if not pd.isna(home_std) else 0.0,
+                'games': int(len(home_games))
             }
         
         # Away games
         away_games = games_df[games_df['IS_HOME'] == False]
         if len(away_games) > 0:
+            away_avg = away_games['PTS'].mean()
+            away_std = away_games['PTS'].std()
             splits['away'] = {
-                'avg': round(away_games['PTS'].mean(), 1),
-                'std': round(away_games['PTS'].std(), 1),
-                'games': len(away_games)
+                'avg': round(float(away_avg), 1) if not pd.isna(away_avg) else 0.0,
+                'std': round(float(away_std), 1) if not pd.isna(away_std) else 0.0,
+                'games': int(len(away_games))
             }
         
         # vs specific opponent
         if opponent:
             vs_opp = games_df[games_df['OPPONENT'] == opponent]
             if len(vs_opp) > 0:
+                opp_avg = vs_opp['PTS'].mean()
+                opp_std = vs_opp['PTS'].std()
                 splits['vs_opponent'] = {
-                    'avg': round(vs_opp['PTS'].mean(), 1),
-                    'std': round(vs_opp['PTS'].std(), 1),
-                    'games': len(vs_opp),
-                    'last_3': vs_opp.head(3)['PTS'].tolist() if len(vs_opp) >= 3 else vs_opp['PTS'].tolist()
+                    'avg': round(float(opp_avg), 1) if not pd.isna(opp_avg) else 0.0,
+                    'std': round(float(opp_std), 1) if not pd.isna(opp_std) else 0.0,
+                    'games': int(len(vs_opp)),
+                    'last_3': [float(x) for x in (vs_opp.head(3)['PTS'].tolist() if len(vs_opp) >= 3 else vs_opp['PTS'].tolist())]
                 }
         
         return splits
