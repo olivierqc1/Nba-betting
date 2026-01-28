@@ -3,145 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Betting Analyzer</title>
+    <title>NBA Betting Analyzer 🏀</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 40px;
-            margin-bottom: 30px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
         }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
         .header h1 {
-            background: linear-gradient(135deg, #1e3c72 0%, #7e22ce 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 3em;
-            font-weight: 800;
+            font-size: 2.5em;
+            color: #667eea;
             margin-bottom: 10px;
         }
-        .status-indicator {
-            display: inline-block;
-            padding: 8px 16px;
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
             border-radius: 20px;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-        .status-connected { background: #d1fae5; color: #065f46; }
-        .status-disconnected { background: #fee2e2; color: #991b1b; }
-        .controls {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 24px;
             padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        .control-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            align-items: center;
+
+        .form-group {
+            margin-bottom: 20px;
         }
-        .control-row label { min-width: 150px; font-weight: 600; }
-        .control-row input, .control-row select {
-            flex: 1;
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 1em;
+            transition: border 0.3s;
         }
-        .btn-primary {
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 16px 50px;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 1.1em;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s;
-            margin-right: 10px;
+            transition: transform 0.2s;
         }
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+
+        .btn:hover {
+            transform: translateY(-2px);
         }
-        .btn-secondary {
-            background: #6b7280;
-            color: white;
-            border: none;
-            padding: 16px 30px;
-            border-radius: 12px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
-        #content {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 24px;
+
+        .loading {
+            text-align: center;
             padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
-        .result-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 16px;
-            padding: 25px;
-            margin-bottom: 25px;
-        }
-        .result-header {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #1e3c72;
-            margin-bottom: 15px;
-        }
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        .stat-row:last-child { border-bottom: none; }
-        .stat-label { color: #666; }
-        .stat-value { font-weight: 700; color: #1e3c72; }
-        .recommendation {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 20px;
+            color: #667eea;
             font-size: 1.2em;
-            font-weight: 700;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .prediction-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
             text-align: center;
         }
-        .recommendation.under {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+        .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
         }
-        .loading { text-align: center; padding: 50px; color: #666; }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .recommendation {
+            background: #10b981;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .recommendation.under {
+            background: #ef4444;
+        }
+
+        .recommendation.skip {
+            background: #f59e0b;
+        }
+
+        .splits {
+            margin-top: 20px;
+        }
+
+        .splits h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
         .error {
             background: #fee2e2;
             border: 2px solid #fca5a5;
             color: #991b1b;
             padding: 20px;
-            border-radius: 12px;
-            margin: 20px 0;
+            border-radius: 10px;
+            margin-top: 20px;
         }
-        .info {
-            background: #dbeafe;
-            border: 2px solid #93c5fd;
-            color: #1e40af;
-            padding: 20px;
-            border-radius: 12px;
-            margin: 20px 0;
+
+        @media (max-width: 600px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -149,157 +218,242 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Betting Analyzer</h1>
-            <p>Système d'analyse avec vraies données NBA (nba_api - GRATUIT, pas de clé API!)</p>
-            <div id="status-indicator" class="status-indicator status-disconnected">
-                🔴 Backend déconnecté
-            </div>
+            <p>Analyse statistique avec vraies données NBA</p>
         </div>
 
-        <div class="controls">
-            <h2 style="margin-bottom: 20px;">Configuration</h2>
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #667eea;">Analyser un joueur</h2>
             
-            <div class="control-row">
-                <label>URL Backend:</label>
-                <input type="text" id="api-url" value="http://localhost:5000" 
-                       placeholder="http://localhost:5000 ou https://ton-app.com">
+            <div class="form-group">
+                <label>Joueur (tape le nom)</label>
+                <input type="text" id="player" placeholder="Ex: LeBron James, Stephen Curry..." 
+                       list="players-list" autocomplete="off">
+                <datalist id="players-list">
+                    <!-- Top 100+ joueurs NBA -->
+                    <option value="LeBron James">
+                    <option value="Stephen Curry">
+                    <option value="Luka Doncic">
+                    <option value="Giannis Antetokounmpo">
+                    <option value="Kevin Durant">
+                    <option value="Nikola Jokic">
+                    <option value="Joel Embiid">
+                    <option value="Jayson Tatum">
+                    <option value="Anthony Davis">
+                    <option value="Damian Lillard">
+                    <option value="Devin Booker">
+                    <option value="Trae Young">
+                    <option value="Donovan Mitchell">
+                    <option value="Kawhi Leonard">
+                    <option value="Jimmy Butler">
+                    <option value="Shai Gilgeous-Alexander">
+                    <option value="Jaylen Brown">
+                    <option value="De'Aaron Fox">
+                    <option value="Anthony Edwards">
+                    <option value="Tyrese Haliburton">
+                    <option value="Paul George">
+                    <option value="Julius Randle">
+                    <option value="Zion Williamson">
+                    <option value="Ja Morant">
+                    <option value="Karl-Anthony Towns">
+                    <option value="DeMar DeRozan">
+                    <option value="Bradley Beal">
+                    <option value="Pascal Siakam">
+                    <option value="Fred VanVleet">
+                    <option value="Jalen Brunson">
+                    <option value="Darius Garland">
+                    <option value="Lauri Markkanen">
+                    <option value="Kristaps Porzingis">
+                    <option value="Bam Adebayo">
+                    <option value="Jaren Jackson Jr.">
+                    <option value="Brandon Ingram">
+                    <option value="CJ McCollum">
+                    <option value="Kyrie Irving">
+                    <option value="James Harden">
+                    <option value="Russell Westbrook">
+                    <option value="Chris Paul">
+                    <option value="Klay Thompson">
+                    <option value="Draymond Green">
+                    <option value="Khris Middleton">
+                    <option value="Jrue Holiday">
+                    <option value="Tobias Harris">
+                    <option value="Tyler Herro">
+                    <option value="LaMelo Ball">
+                    <option value="Cade Cunningham">
+                    <option value="Scottie Barnes">
+                    <option value="Evan Mobley">
+                    <option value="Paolo Banchero">
+                    <option value="Franz Wagner">
+                    <option value="Jalen Green">
+                    <option value="Jabari Smith Jr.">
+                    <option value="Bennedict Mathurin">
+                    <option value="Keegan Murray">
+                    <option value="Victor Wembanyama">
+                    <option value="Chet Holmgren">
+                    <option value="Scoot Henderson">
+                    <option value="Brandon Miller">
+                    <option value="Ausar Thompson">
+                    <option value="Mikal Bridges">
+                    <option value="OG Anunoby">
+                    <option value="RJ Barrett">
+                    <option value="Immanuel Quickley">
+                    <option value="Desmond Bane">
+                    <option value="Alperen Sengun">
+                    <option value="Jalen Williams">
+                    <option value="Josh Giddey">
+                    <option value="Shaedon Sharpe">
+                    <option value="Anfernee Simons">
+                    <option value="Jerami Grant">
+                    <option value="Clint Capela">
+                    <option value="Nikola Vucevic">
+                    <option value="Domantas Sabonis">
+                    <option value="Jonas Valanciunas">
+                    <option value="Jusuf Nurkic">
+                    <option value="Al Horford">
+                    <option value="Brook Lopez">
+                    <option value="Myles Turner">
+                    <option value="Mitchell Robinson">
+                    <option value="Robert Williams III">
+                    <option value="Jarrett Allen">
+                    <option value="Ivica Zubac">
+                    <option value="Isaiah Stewart">
+                    <option value="Jalen Duren">
+                    <option value="Walker Kessler">
+                    <option value="Nic Claxton">
+                    <option value="Daniel Gafford">
+                    <option value="Precious Achiuwa">
+                    <option value="Bobby Portis">
+                    <option value="John Collins">
+                    <option value="Cameron Johnson">
+                    <option value="Bogdan Bogdanovic">
+                    <option value="Jordan Poole">
+                    <option value="Jordan Clarkson">
+                    <option value="Malik Monk">
+                    <option value="Austin Reaves">
+                    <option value="D'Angelo Russell">
+                    <option value="Spencer Dinwiddie">
+                    <option value="Terry Rozier">
+                    <option value="Malcolm Brogdon">
+                    <option value="Derrick White">
+                    <option value="Gary Trent Jr.">
+                    <option value="Kelly Oubre Jr.">
+                    <option value="Buddy Hield">
+                    <option value="Duncan Robinson">
+                    <option value="Max Strus">
+                    <option value="Coby White">
+                    <option value="Josh Hart">
+                    <option value="Herbert Jones">
+                    <option value="Alex Caruso">
+                    <option value="Grayson Allen">
+                    <option value="Kyle Kuzma">
+                    <option value="Andrew Wiggins">
+                    <option value="Harrison Barnes">
+                    <option value="Bojan Bogdanovic">
+                    <option value="Marcus Smart">
+                    <option value="De'Anthony Melton">
+                    <option value="Tyus Jones">
+                    <option value="Rui Hachimura">
+                    <option value="Taurean Prince">
+                    <option value="Nicolas Batum">
+                    <option value="PJ Tucker">
+                    <option value="Derrick Jones Jr.">
+                    <option value="Caleb Martin">
+                    <option value="Jonathan Isaac">
+                    <option value="Patrick Williams">
+                    <option value="Obi Toppin">
+                    <option value="Jaden McDaniels">
+                    <option value="Tari Eason">
+                    <option value="AJ Griffin">
+                    <option value="Ochai Agbaji">
+                    <option value="Trey Murphy III">
+                    <option value="Isaiah Jackson">
+                </datalist>
+                <small style="color: #999;">Tu peux taper N'IMPORTE QUEL nom de joueur NBA</small>
             </div>
-            
-            <div class="control-row">
-                <label>Joueur:</label>
-                <input type="text" id="player" value="LeBron James" 
-                       placeholder="Ex: LeBron James">
-            </div>
-            
-            <div class="control-row">
-                <label>Adversaire:</label>
+
+            <div class="form-group">
+                <label>Adversaire</label>
                 <select id="opponent">
-                    <option value="GSW">Golden State Warriors</option>
-                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="ATL">Atlanta Hawks</option>
                     <option value="BOS">Boston Celtics</option>
-                    <option value="MIA">Miami Heat</option>
-                    <option value="MIL">Milwaukee Bucks</option>
-                    <option value="PHX">Phoenix Suns</option>
+                    <option value="BKN">Brooklyn Nets</option>
+                    <option value="CHA">Charlotte Hornets</option>
+                    <option value="CHI">Chicago Bulls</option>
+                    <option value="CLE">Cleveland Cavaliers</option>
                     <option value="DAL">Dallas Mavericks</option>
                     <option value="DEN">Denver Nuggets</option>
+                    <option value="DET">Detroit Pistons</option>
+                    <option value="GSW">Golden State Warriors</option>
+                    <option value="HOU">Houston Rockets</option>
+                    <option value="IND">Indiana Pacers</option>
                     <option value="LAC">LA Clippers</option>
+                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="MEM">Memphis Grizzlies</option>
+                    <option value="MIA">Miami Heat</option>
+                    <option value="MIL">Milwaukee Bucks</option>
+                    <option value="MIN">Minnesota Timberwolves</option>
+                    <option value="NOP">New Orleans Pelicans</option>
+                    <option value="NYK">New York Knicks</option>
+                    <option value="OKC">Oklahoma City Thunder</option>
+                    <option value="ORL">Orlando Magic</option>
                     <option value="PHI">Philadelphia 76ers</option>
+                    <option value="PHX">Phoenix Suns</option>
+                    <option value="POR">Portland Trail Blazers</option>
+                    <option value="SAC">Sacramento Kings</option>
+                    <option value="SAS">San Antonio Spurs</option>
+                    <option value="TOR">Toronto Raptors</option>
+                    <option value="UTA">Utah Jazz</option>
+                    <option value="WAS">Washington Wizards</option>
                 </select>
             </div>
-            
-            <div class="control-row">
-                <label>Domicile/Extérieur:</label>
-                <select id="is-home">
-                    <option value="true">Domicile</option>
-                    <option value="false">Extérieur</option>
+
+            <div class="form-group">
+                <label>Domicile / Extérieur</label>
+                <select id="isHome">
+                    <option value="true">Domicile (vs)</option>
+                    <option value="false">Extérieur (@)</option>
                 </select>
             </div>
-            
-            <div class="control-row">
-                <label>Ligne Bookmaker:</label>
+
+            <div class="form-group">
+                <label>Ligne Bookmaker (optionnel)</label>
                 <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
             </div>
-            
-            <div style="margin-top: 20px;">
-                <button class="btn-primary" onclick="analyzePlayer()">
-                    🔍 Analyser
-                </button>
-                <button class="btn-secondary" onclick="checkBackend()">
-                    🔄 Test Connexion
-                </button>
-            </div>
+
+            <button class="btn" onclick="analyzePlayer()">🔍 Analyser</button>
         </div>
 
-        <div id="content">
-            <div class="info">
-                <h3>📖 Comment Utiliser</h3>
-                <p><strong>✅ AUCUNE clé API nécessaire! nba_api est 100% GRATUIT</strong></p>
-                <p style="margin-top: 15px;"><strong>Option 1 - En Local:</strong></p>
-                <ol style="margin: 10px 0 10px 20px;">
-                    <li>Lance <code>python3 nba_complete.py</code> dans un terminal</li>
-                    <li>Garde l'URL: <code>http://localhost:5000</code></li>
-                    <li>Clique sur "Analyser"</li>
-                </ol>
-                <p style="margin-top: 15px;"><strong>Option 2 - Sur GitHub Pages:</strong></p>
-                <ol style="margin: 10px 0 10px 20px;">
-                    <li>Deploy ton backend sur Replit/PythonAnywhere (gratuit)</li>
-                    <li>Change l'URL ci-dessus</li>
-                    <li>Clique sur "Analyser"</li>
-                </ol>
-                <p style="margin-top: 15px;"><strong>📝 Note:</strong> Cette page marche sur GitHub Pages! Lis DEPLOIEMENT_GRATUIT.md</p>
-            </div>
+        <div id="loading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyse en cours avec vraies données NBA...</p>
+            <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                Première requête peut prendre 30-60 secondes (cold start gratuit)
+            </p>
+        </div>
+
+        <div id="result" class="card result">
+            <!-- Résultats ici -->
         </div>
     </div>
 
     <script>
-        let API_BASE_URL = 'http://localhost:5000';
-
-        async function checkBackend() {
-            const url = document.getElementById('api-url').value;
-            API_BASE_URL = url;
-            
-            const statusDiv = document.getElementById('status-indicator');
-            statusDiv.textContent = '⏳ Vérification...';
-            statusDiv.className = 'status-indicator';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/health`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    statusDiv.textContent = `✅ Connecté - ${data.data_source}`;
-                    statusDiv.className = 'status-indicator status-connected';
-                    
-                    document.getElementById('content').innerHTML = `
-                        <div class="info">
-                            <h3>✅ Backend Connecté!</h3>
-                            <p><strong>Status:</strong> ${data.status}</p>
-                            <p><strong>Source:</strong> ${data.data_source}</p>
-                            <p><strong>nba_api installé:</strong> ${data.nba_api ? 'Oui ✅' : 'Non ❌'}</p>
-                            <p><strong>Timestamp:</strong> ${data.timestamp}</p>
-                            <p style="margin-top: 15px;">✅ Tu peux maintenant analyser des joueurs!</p>
-                        </div>
-                    `;
-                } else {
-                    throw new Error('Backend inaccessible');
-                }
-            } catch (error) {
-                statusDiv.textContent = '🔴 Backend déconnecté';
-                statusDiv.className = 'status-indicator status-disconnected';
-                
-                document.getElementById('content').innerHTML = `
-                    <div class="error">
-                        <h3>❌ Impossible de se connecter au backend</h3>
-                        <p><strong>Erreur:</strong> ${error.message}</p>
-                        <p style="margin-top: 15px;"><strong>Solutions:</strong></p>
-                        <ol style="margin-left: 20px;">
-                            <li>Lance <code>python3 nba_complete.py</code> en local</li>
-                            <li>Vérifie l'URL du backend</li>
-                            <li>Check que CORS est configuré</li>
-                        </ol>
-                    </div>
-                `;
-            }
-        }
+        const API_URL = 'https://nba-betting-1.onrender.com';
 
         async function analyzePlayer() {
-            const url = document.getElementById('api-url').value;
-            API_BASE_URL = url;
-            
             const player = document.getElementById('player').value;
             const opponent = document.getElementById('opponent').value;
-            const isHome = document.getElementById('is-home').value === 'true';
+            const isHome = document.getElementById('isHome').value === 'true';
             const line = document.getElementById('line').value;
-            
-            const content = document.getElementById('content');
-            content.innerHTML = '<div class="loading">⏳ Analyse en cours...</div>';
-            
+
+            // Affiche loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
+
             try {
-                const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+                const response = await fetch(`${API_URL}/api/analyze`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         player: player,
                         opponent: opponent,
@@ -307,105 +461,73 @@
                         line: line ? parseFloat(line) : null
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 displayResults(data);
-                
+
             } catch (error) {
-                content.innerHTML = `
-                    <div class="error">
-                        <h3>❌ Erreur d'analyse</h3>
-                        <p><strong>Erreur:</strong> ${error.message}</p>
-                        <p style="margin-top: 15px;">Vérifie que le backend est lancé et accessible.</p>
-                    </div>
-                `;
+                displayError(error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
             }
         }
 
         function displayResults(data) {
-            const recClass = data.recommendation.bet === 'UNDER' ? 'under' : '';
+            const resultDiv = document.getElementById('result');
             
-            const html = `
-                <div class="result-card">
-                    <div class="result-header">${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</div>
-                    <div class="stat-row">
-                        <span class="stat-label">Source des données:</span>
-                        <span class="stat-value">${data.data_source}</span>
+            let html = `
+                <div class="prediction-box">
+                    <h2>${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} pts</div>
+                    <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Moyenne pondérée</div>
+                        <div class="stat-value">${data.season_stats.weighted_avg}</div>
                     </div>
-                    
-                    <h3 style="margin-top: 25px; margin-bottom: 15px;">📈 Prédiction</h3>
-                    <div class="stat-row">
-                        <span class="stat-label">Points prédits:</span>
-                        <span class="stat-value">${data.prediction.points} pts</span>
+                    <div class="stat-item">
+                        <div class="stat-label">Écart-type</div>
+                        <div class="stat-value">${data.season_stats.std_dev}</div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Écart-type (σ):</span>
-                        <span class="stat-value">${data.prediction.std_dev}</span>
+                    <div class="stat-item">
+                        <div class="stat-label">Matchs analysés</div>
+                        <div class="stat-value">${data.season_stats.games_played}</div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Intervalle 80%:</span>
-                        <span class="stat-value">
-                            ${data.prediction.confidence_interval_80.low} - ${data.prediction.confidence_interval_80.high}
-                        </span>
+                    <div class="stat-item">
+                        <div class="stat-label">Tendance</div>
+                        <div class="stat-value">${data.season_stats.trend > 0 ? '+' : ''}${data.season_stats.trend}</div>
                     </div>
-                    
-                    <h3 style="margin-top: 25px; margin-bottom: 15px;">🎲 Probabilités</h3>
-                    <div class="stat-row">
-                        <span class="stat-label">Ligne bookmaker:</span>
-                        <span class="stat-value">${data.bookmaker_line} pts</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Prob. OVER:</span>
-                        <span class="stat-value">${data.probabilities.over}%</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Prob. UNDER:</span>
-                        <span class="stat-value">${data.probabilities.under}%</span>
-                    </div>
-                    
-                    <h3 style="margin-top: 25px; margin-bottom: 15px;">📊 Qualité du Modèle</h3>
-                    <div class="stat-row">
-                        <span class="stat-label">R² (qualité):</span>
-                        <span class="stat-value">${data.regression_stats.model_quality.r_squared.toFixed(3)}</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">RMSE (erreur):</span>
-                        <span class="stat-value">${data.regression_stats.model_quality.rmse.toFixed(2)} pts</span>
-                    </div>
-                    
-                    ${data.recommendation.bet !== 'SKIP' ? `
-                        <div class="recommendation ${recClass}">
-                            ${data.recommendation.bet} ${data.bookmaker_line}
-                            <br>
-                            Edge: +${data.recommendation.edge}% | Confiance: ${data.recommendation.confidence}%
-                        </div>
-                    ` : `
-                        <div style="background: #fef3c7; color: #92400e; padding: 20px; border-radius: 12px; margin-top: 20px; text-align: center;">
-                            ⚠️ SKIP - Edge insuffisant
-                        </div>
-                    `}
-                    
-                    <h3 style="margin-top: 25px; margin-bottom: 15px;">🎯 Derniers Matchs</h3>
-                    ${data.recent_games.map(game => `
-                        <div class="stat-row">
-                            <span class="stat-label">${game.date} - ${game.opponent}</span>
-                            <span class="stat-value">${game.points} pts (${game.result})</span>
-                        </div>
-                    `).join('')}
                 </div>
             `;
-            
-            document.getElementById('content').innerHTML = html;
-        }
 
-        // Check backend au chargement
-        window.addEventListener('DOMContentLoaded', () => {
-            checkBackend();
-        });
-    </script>
-</body>
-</html>
+            // Splits
+            if (data.splits) {
+                html += '<div class="splits"><h3>📊 Splits</h3><div class="stat-grid">';
+                
+                if (data.splits.home) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
+                            <div class="stat-value">${data.splits.home.avg} pts</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.away) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
+                            <div class="stat-value">${data.splits.away.avg} pts</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.vs_opponent) {
+                    html += `
+                
