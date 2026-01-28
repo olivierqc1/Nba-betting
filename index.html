@@ -303,12 +303,20 @@
                 </select>
             </div>
 
+            <button class="btn" onclick="viewPlayerStats()" style="background: #3b82f6; margin-bottom: 15px;">
+                📊 Voir Stats Complètes
+            </button>
+
             <div class="form-group">
                 <label>Ligne Bookmaker (points)</label>
                 <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
             </div>
 
             <button class="btn" onclick="analyzePlayer()">🔍 Analyser</button>
+        </div>
+
+        <div id="statsViewer" class="card" style="display: none;">
+            <!-- Stats complètes -->
         </div>
 
         <div id="loading" class="card loading" style="display: none;">
@@ -375,6 +383,94 @@
             } finally {
                 document.getElementById('teamLoading').style.display = 'none';
             }
+        }
+
+        async function viewPlayerStats() {
+            const player = document.getElementById('player').value;
+
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('statsViewer').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/player-stats/${encodeURIComponent(player)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayPlayerStats(data);
+
+            } catch (error) {
+                displayError(`Erreur stats: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayPlayerStats(data) {
+            const statsDiv = document.getElementById('statsViewer');
+            
+            let html = `
+                <h2 style="color: #667eea; margin-bottom: 20px;">📊 Stats Complètes - ${data.player}</h2>
+                
+                <div class="info-box">
+                    <h3>Saison ${data.season}</h3>
+                    <p><strong>Matchs:</strong> ${data.total_games}</p>
+                    <p><strong>Période:</strong> ${data.date_range.first_game} au ${data.date_range.last_game}</p>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Moyennes</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Saison</div>
+                        <div class="stat-value">${data.averages.season} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">10 derniers</div>
+                        <div class="stat-value">${data.averages.last_10} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">5 derniers</div>
+                        <div class="stat-value">${data.averages.last_5} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Domicile</div>
+                        <div class="stat-value">${data.averages.home} pts</div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Tous les matchs (${data.all_games.length})</h3>
+                <div style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            `;
+
+            data.all_games.forEach(game => {
+                const bgColor = game.points >= data.averages.season ? '#d1fae5' : '#fee2e2';
+                html += `
+                    <div style="background: ${bgColor}; padding: 10px; margin-bottom: 8px; border-radius: 5px; display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>${game.date}</strong> - ${game.matchup}
+                            <br><small>${game.location}</small>
+                        </div>
+                        <div style="font-size: 1.5em; font-weight: 700; color: #667eea;">
+                            ${game.points} pts
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                </div>
+            `;
+
+            statsDiv.innerHTML = html;
+            statsDiv.style.display = 'block';
         }
 
         async function analyzePlayer() {
