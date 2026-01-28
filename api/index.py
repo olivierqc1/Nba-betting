@@ -1,13 +1,13 @@
 """
-NBA Betting Analyzer - Real Data Version v2
-Uses nba_api with weighted temporal analysis and detailed splits
+NBA Betting Analyzer - Complete Version with Stats Viewer
+Real NBA data from nba_api with detailed game history
 """
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
@@ -17,7 +17,7 @@ CORS(app)
 
 # Import nba_api
 try:
-    from nba_api.stats.endpoints import playergamelog, commonplayerinfo
+    from nba_api.stats.endpoints import playergamelog, commonteamroster, teamgamelog
     from nba_api.stats.static import players, teams
     NBA_API_AVAILABLE = True
     print("✅ nba_api imported successfully")
@@ -242,9 +242,7 @@ class NBAAnalyzer:
         return float(adjusted), adjustments
     
     def predict_points(self, player_name, opponent, is_home=True, line=None):
-        """
-        Prédit les points avec analyse complète
-        """
+        """Prédit les points avec analyse complète"""
         if not NBA_API_AVAILABLE:
             return {
                 'error': 'nba_api not available',
@@ -361,11 +359,13 @@ def root():
     return jsonify({
         'message': 'NBA Betting Analyzer API',
         'status': 'online',
+        'season': '2025-26',
         'endpoints': {
             'info': '/api',
             'health': '/api/health',
             'analyze': 'POST /api/analyze',
-            'raw_games': 'GET /api/raw-games/<player_name>'
+            'team_roster': 'GET /api/team-roster/<team_code>',
+            'player_stats': 'GET /api/player-stats/<player_name>'
         }
     })
 
@@ -373,7 +373,8 @@ def root():
 def api_info():
     return jsonify({
         'name': 'NBA Betting Analyzer API',
-        'version': '2.1',
+        'version': '2.2',
+        'season': '2025-26',
         'data_source': 'nba_api (REAL DATA - Full Season)',
         'nba_api_status': 'AVAILABLE' if NBA_API_AVAILABLE else 'UNAVAILABLE',
         'features': [
@@ -382,12 +383,14 @@ def api_info():
             'Head-to-head history',
             'Opponent defense adjustment',
             '95% confidence intervals',
-            'Kelly Criterion bet sizing'
+            'Kelly Criterion bet sizing',
+            'Full game history viewer'
         ],
         'endpoints': {
             'health': 'GET /api/health',
             'analyze': 'POST /api/analyze',
-            'raw_games': 'GET /api/raw-games/<player_name>'
+            'team_roster': 'GET /api/team-roster/<team_code>',
+            'player_stats': 'GET /api/player-stats/<player_name>'
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -397,6 +400,7 @@ def health():
     return jsonify({
         'status': 'ok',
         'nba_api': NBA_API_AVAILABLE,
+        'season': '2025-26',
         'data_source': 'REAL (Full Season)' if NBA_API_AVAILABLE else 'UNAVAILABLE',
         'timestamp': datetime.now().isoformat()
     })
@@ -430,9 +434,12 @@ def analyze_player():
             'status': 'ERROR'
         }), 500
 
-@app.route('/api/raw-games/<player_name>', methods=['GET'])
-def get_raw_games(player_name):
-    """Endpoint DEBUG - Montre TOUS les VRAIS matchs récupérés avec dates"""
+@app.route('/api/player-stats/<player_name>', methods=['GET'])
+def get_player_stats(player_name):
+    """
+    Endpoint pour voir TOUTES les stats d'un joueur avec historique complet
+    Usage: /api/player-stats/Jayson Tatum
+    """
     try:
         player_id = analyzer.get_player_id(player_name)
         if not player_id:
@@ -448,23 +455,36 @@ def get_raw_games(player_name):
                 'status': 'NO_DATA'
             }), 404
         
-        # Convertit TOUS les matchs en dict pour JSON
+        # Convertit TOUS les matchs
         all_games_list = []
         for idx, row in season_games.iterrows():
             all_games_list.append({
                 'game_number': len(season_games) - idx,
                 'date': str(row['GAME_DATE'].date()),
+                'matchup': str(row['MATCHUP']),
                 'opponent': str(row['OPPONENT']),
                 'points': float(row['PTS']),
-                'minutes': float(row.get('MIN', 0)),
+                'minutes': float(row.get('MIN', 0)) if not pd.isna(row.get('MIN', 0)) else 0,
                 'is_home': bool(row['IS_HOME']),
-                'location': 'Home' if row['IS_HOME'] else 'Away'
+                'location': 'Domicile' if row['IS_HOME'] else 'Extérieur'
             })
         
         # Stats globales
         recent_10 = season_games.head(10)['PTS'].mean()
+        recent_5 = season_games.head(5)['PTS'].mean()
         home_games = season_games[season_games['IS_HOME'] == True]
         away_games = season_games[season_games['IS_HOME'] == False]
+        
+        # Splits par adversaire (top 5)
+        opponent_splits = {}
+        for opp in season_games['OPPONENT'].unique():
+            opp_games = season_games[season_games['OPPONENT'] == opp]
+            if len(opp_games) >= 2:
+                opponent_splits[opp] = {
+                    'games': int(len(opp_games)),
+                    'avg': round(float(opp_games['PTS'].mean()), 1),
+                    'last': float(opp_games.iloc[0]['PTS'])
+                }
         
         return jsonify({
             'player': player_name,
@@ -477,8 +497,20 @@ def get_raw_games(player_name):
             'averages': {
                 'season': round(float(season_games['PTS'].mean()), 1),
                 'last_10': round(float(recent_10), 1),
+                'last_5': round(float(recent_5), 1),
                 'home': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0,
                 'away': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
+            },
+            'splits': {
+                'home': {
+                    'games': int(len(home_games)),
+                    'avg': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0
+                },
+                'away': {
+                    'games': int(len(away_games)),
+                    'avg': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
+                },
+                'by_opponent': opponent_splits
             },
             'all_games': all_games_list,
             'data_source': 'NBA API (REAL DATA)',
@@ -501,8 +533,6 @@ def get_team_roster(team_code):
         }), 503
     
     try:
-        from nba_api.stats.endpoints import commonteamroster, teamgamelog
-        
         # Map team code to team ID
         team_dict = {
             'ATL': 1610612737, 'BOS': 1610612738, 'BKN': 1610612751, 'CHA': 1610612766,
@@ -535,7 +565,7 @@ def get_team_roster(team_code):
                 'number': str(player.get('NUM', ''))
             })
         
-        # Récupère derniers matchs pour trouver prochain
+        # Récupère derniers matchs
         gamelog = teamgamelog.TeamGameLog(team_id=team_id, season='2025-26')
         games_df = gamelog.get_data_frames()[0]
         
@@ -543,6 +573,37 @@ def get_team_roster(team_code):
         games_df['GAME_DATE'] = pd.to_datetime(games_df['GAME_DATE'])
         games_df = games_df.sort_values('GAME_DATE', ascending=False)
         
-        # Trouve le dernier match
+        # Dernier match
         last_game = games_df.iloc[0]
-        last_game_date =
+        last_game_date = last_game['GAME_DATE']
+        
+        # Extrait opponent et home/away
+        matchup = str(last_game['MATCHUP'])
+        is_home = 'vs.' in matchup
+        opponent = matchup.split('vs.' if is_home else '@')[1].strip()
+        
+        next_game_info = {
+            'last_game_date': str(last_game_date.date()),
+            'opponent': opponent,
+            'is_home': is_home,
+            'location': 'Domicile' if is_home else 'Extérieur',
+            'note': 'Info basée sur dernier match - Vérifier le calendrier NBA pour le prochain'
+        }
+        
+        return jsonify({
+            'team': team_code.upper(),
+            'roster': sorted(roster_list, key=lambda x: x['name']),
+            'next_game': next_game_info,
+            'status': 'SUCCESS'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'ERROR'
+        }), 500
+
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
