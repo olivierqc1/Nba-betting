@@ -29,7 +29,7 @@ class NBAAnalyzer:
     """Analyste NBA avec vraies données, pondération temporelle et splits"""
     
     def __init__(self):
-        self.current_season = '2024-25'
+        self.current_season = '2025-26'  # ✅ Saison actuelle
         
         # Ratings défensifs moyens par équipe
         self.defensive_ratings = {
@@ -432,7 +432,7 @@ def analyze_player():
 
 @app.route('/api/raw-games/<player_name>', methods=['GET'])
 def get_raw_games(player_name):
-    """Endpoint DEBUG - Montre les VRAIS matchs récupérés"""
+    """Endpoint DEBUG - Montre TOUS les VRAIS matchs récupérés avec dates"""
     try:
         player_id = analyzer.get_player_id(player_name)
         if not player_id:
@@ -448,21 +448,39 @@ def get_raw_games(player_name):
                 'status': 'NO_DATA'
             }), 404
         
-        # Convertit en dict pour JSON
-        games_list = []
-        for idx, row in season_games.head(10).iterrows():
-            games_list.append({
+        # Convertit TOUS les matchs en dict pour JSON
+        all_games_list = []
+        for idx, row in season_games.iterrows():
+            all_games_list.append({
+                'game_number': len(season_games) - idx,
                 'date': str(row['GAME_DATE'].date()),
                 'opponent': str(row['OPPONENT']),
                 'points': float(row['PTS']),
-                'is_home': bool(row['IS_HOME'])
+                'minutes': float(row.get('MIN', 0)),
+                'is_home': bool(row['IS_HOME']),
+                'location': 'Home' if row['IS_HOME'] else 'Away'
             })
+        
+        # Stats globales
+        recent_10 = season_games.head(10)['PTS'].mean()
+        home_games = season_games[season_games['IS_HOME'] == True]
+        away_games = season_games[season_games['IS_HOME'] == False]
         
         return jsonify({
             'player': player_name,
+            'season': '2025-26',
             'total_games': int(len(season_games)),
-            'last_10_games': games_list,
-            'average_points': round(float(season_games['PTS'].mean()), 1),
+            'date_range': {
+                'first_game': str(season_games.iloc[-1]['GAME_DATE'].date()),
+                'last_game': str(season_games.iloc[0]['GAME_DATE'].date())
+            },
+            'averages': {
+                'season': round(float(season_games['PTS'].mean()), 1),
+                'last_10': round(float(recent_10), 1),
+                'home': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0,
+                'away': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
+            },
+            'all_games': all_games_list,
             'data_source': 'NBA API (REAL DATA)',
             'status': 'SUCCESS'
         })
@@ -505,7 +523,7 @@ def get_team_roster(team_code):
             }), 400
         
         # Récupère roster
-        roster = commonteamroster.CommonTeamRoster(team_id=team_id, season='2024-25')
+        roster = commonteamroster.CommonTeamRoster(team_id=team_id, season='2025-26')
         roster_df = roster.get_data_frames()[0]
         
         # Liste des joueurs
@@ -518,7 +536,7 @@ def get_team_roster(team_code):
             })
         
         # Récupère derniers matchs pour trouver prochain
-        gamelog = teamgamelog.TeamGameLog(team_id=team_id, season='2024-25')
+        gamelog = teamgamelog.TeamGameLog(team_id=team_id, season='2025-26')
         games_df = gamelog.get_data_frames()[0]
         
         # Trie par date
@@ -527,33 +545,4 @@ def get_team_roster(team_code):
         
         # Trouve le dernier match
         last_game = games_df.iloc[0]
-        last_game_date = last_game['GAME_DATE']
-        
-        # Extrait opponent et home/away du dernier match
-        matchup = str(last_game['MATCHUP'])
-        is_home = 'vs.' in matchup
-        opponent = matchup.split('vs.' if is_home else '@')[1].strip()
-        
-        next_game_info = {
-            'last_game_date': str(last_game_date.date()),
-            'opponent': opponent,
-            'is_home': is_home,
-            'location': 'Domicile' if is_home else 'Extérieur',
-            'note': 'Info basée sur dernier match - vérifier le calendrier pour prochain'
-        }
-        
-        return jsonify({
-            'team': team_code.upper(),
-            'roster': sorted(roster_list, key=lambda x: x['name']),
-            'next_game': next_game_info,
-            'status': 'SUCCESS'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'status': 'ERROR'
-        }), 500
-
-if __name__ == '__main__':
-    import os
+        last_game_date =
