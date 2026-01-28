@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Betting Analyzer 🏀</title>
+    <title>NBA Betting Analyzer 🏀 - Auto</title>
     <style>
         * {
             margin: 0;
@@ -43,6 +43,16 @@
             font-size: 1.1em;
         }
 
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
         .card {
             background: white;
             border-radius: 20px;
@@ -62,8 +72,8 @@
             color: #333;
         }
 
-        .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group input {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -72,8 +82,8 @@
             transition: border 0.3s;
         }
 
-        .form-group input:focus,
-        .form-group select:focus {
+        .form-group select:focus,
+        .form-group input:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -98,6 +108,19 @@
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #3b82f6;
+            margin-bottom: 10px;
         }
 
         .loading {
@@ -218,161 +241,17 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Betting Analyzer</h1>
-            <p>Analyse statistique avec vraies données NBA</p>
+            <p>Mode automatisé - Plus rapide!</p>
+            <div class="badge">✨ AUTO</div>
         </div>
 
         <div class="card">
-            <h2 style="margin-bottom: 20px; color: #667eea;">Analyser un joueur</h2>
+            <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
             
             <div class="form-group">
-                <label>Joueur (tape le nom)</label>
-                <input type="text" id="player" placeholder="Ex: LeBron James, Stephen Curry..." 
-                       list="players-list" autocomplete="off">
-                <datalist id="players-list">
-                    <!-- Top 100+ joueurs NBA -->
-                    <option value="LeBron James">
-                    <option value="Stephen Curry">
-                    <option value="Luka Doncic">
-                    <option value="Giannis Antetokounmpo">
-                    <option value="Kevin Durant">
-                    <option value="Nikola Jokic">
-                    <option value="Joel Embiid">
-                    <option value="Jayson Tatum">
-                    <option value="Anthony Davis">
-                    <option value="Damian Lillard">
-                    <option value="Devin Booker">
-                    <option value="Trae Young">
-                    <option value="Donovan Mitchell">
-                    <option value="Kawhi Leonard">
-                    <option value="Jimmy Butler">
-                    <option value="Shai Gilgeous-Alexander">
-                    <option value="Jaylen Brown">
-                    <option value="De'Aaron Fox">
-                    <option value="Anthony Edwards">
-                    <option value="Tyrese Haliburton">
-                    <option value="Paul George">
-                    <option value="Julius Randle">
-                    <option value="Zion Williamson">
-                    <option value="Ja Morant">
-                    <option value="Karl-Anthony Towns">
-                    <option value="DeMar DeRozan">
-                    <option value="Bradley Beal">
-                    <option value="Pascal Siakam">
-                    <option value="Fred VanVleet">
-                    <option value="Jalen Brunson">
-                    <option value="Darius Garland">
-                    <option value="Lauri Markkanen">
-                    <option value="Kristaps Porzingis">
-                    <option value="Bam Adebayo">
-                    <option value="Jaren Jackson Jr.">
-                    <option value="Brandon Ingram">
-                    <option value="CJ McCollum">
-                    <option value="Kyrie Irving">
-                    <option value="James Harden">
-                    <option value="Russell Westbrook">
-                    <option value="Chris Paul">
-                    <option value="Klay Thompson">
-                    <option value="Draymond Green">
-                    <option value="Khris Middleton">
-                    <option value="Jrue Holiday">
-                    <option value="Tobias Harris">
-                    <option value="Tyler Herro">
-                    <option value="LaMelo Ball">
-                    <option value="Cade Cunningham">
-                    <option value="Scottie Barnes">
-                    <option value="Evan Mobley">
-                    <option value="Paolo Banchero">
-                    <option value="Franz Wagner">
-                    <option value="Jalen Green">
-                    <option value="Jabari Smith Jr.">
-                    <option value="Bennedict Mathurin">
-                    <option value="Keegan Murray">
-                    <option value="Victor Wembanyama">
-                    <option value="Chet Holmgren">
-                    <option value="Scoot Henderson">
-                    <option value="Brandon Miller">
-                    <option value="Ausar Thompson">
-                    <option value="Mikal Bridges">
-                    <option value="OG Anunoby">
-                    <option value="RJ Barrett">
-                    <option value="Immanuel Quickley">
-                    <option value="Desmond Bane">
-                    <option value="Alperen Sengun">
-                    <option value="Jalen Williams">
-                    <option value="Josh Giddey">
-                    <option value="Shaedon Sharpe">
-                    <option value="Anfernee Simons">
-                    <option value="Jerami Grant">
-                    <option value="Clint Capela">
-                    <option value="Nikola Vucevic">
-                    <option value="Domantas Sabonis">
-                    <option value="Jonas Valanciunas">
-                    <option value="Jusuf Nurkic">
-                    <option value="Al Horford">
-                    <option value="Brook Lopez">
-                    <option value="Myles Turner">
-                    <option value="Mitchell Robinson">
-                    <option value="Robert Williams III">
-                    <option value="Jarrett Allen">
-                    <option value="Ivica Zubac">
-                    <option value="Isaiah Stewart">
-                    <option value="Jalen Duren">
-                    <option value="Walker Kessler">
-                    <option value="Nic Claxton">
-                    <option value="Daniel Gafford">
-                    <option value="Precious Achiuwa">
-                    <option value="Bobby Portis">
-                    <option value="John Collins">
-                    <option value="Cameron Johnson">
-                    <option value="Bogdan Bogdanovic">
-                    <option value="Jordan Poole">
-                    <option value="Jordan Clarkson">
-                    <option value="Malik Monk">
-                    <option value="Austin Reaves">
-                    <option value="D'Angelo Russell">
-                    <option value="Spencer Dinwiddie">
-                    <option value="Terry Rozier">
-                    <option value="Malcolm Brogdon">
-                    <option value="Derrick White">
-                    <option value="Gary Trent Jr.">
-                    <option value="Kelly Oubre Jr.">
-                    <option value="Buddy Hield">
-                    <option value="Duncan Robinson">
-                    <option value="Max Strus">
-                    <option value="Coby White">
-                    <option value="Josh Hart">
-                    <option value="Herbert Jones">
-                    <option value="Alex Caruso">
-                    <option value="Grayson Allen">
-                    <option value="Kyle Kuzma">
-                    <option value="Andrew Wiggins">
-                    <option value="Harrison Barnes">
-                    <option value="Bojan Bogdanovic">
-                    <option value="Marcus Smart">
-                    <option value="De'Anthony Melton">
-                    <option value="Tyus Jones">
-                    <option value="Rui Hachimura">
-                    <option value="Taurean Prince">
-                    <option value="Nicolas Batum">
-                    <option value="PJ Tucker">
-                    <option value="Derrick Jones Jr.">
-                    <option value="Caleb Martin">
-                    <option value="Jonathan Isaac">
-                    <option value="Patrick Williams">
-                    <option value="Obi Toppin">
-                    <option value="Jaden McDaniels">
-                    <option value="Tari Eason">
-                    <option value="AJ Griffin">
-                    <option value="Ochai Agbaji">
-                    <option value="Trey Murphy III">
-                    <option value="Isaiah Jackson">
-                </datalist>
-                <small style="color: #999;">Tu peux taper N'IMPORTE QUEL nom de joueur NBA</small>
-            </div>
-
-            <div class="form-group">
-                <label>Adversaire</label>
-                <select id="opponent">
+                <label>Équipe à analyser</label>
+                <select id="team" onchange="loadTeamInfo()">
+                    <option value="">-- Sélectionne une équipe --</option>
                     <option value="ATL">Atlanta Hawks</option>
                     <option value="BOS">Boston Celtics</option>
                     <option value="BKN">Brooklyn Nets</option>
@@ -405,17 +284,27 @@
                     <option value="WAS">Washington Wizards</option>
                 </select>
             </div>
+        </div>
+
+        <div id="teamLoading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Chargement roster...</p>
+        </div>
+
+        <div id="teamInfo" class="card" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #667eea;">2️⃣ Prochain match</h2>
+            
+            <div id="nextGameInfo" class="info-box"></div>
 
             <div class="form-group">
-                <label>Domicile / Extérieur</label>
-                <select id="isHome">
-                    <option value="true">Domicile (vs)</option>
-                    <option value="false">Extérieur (@)</option>
+                <label>Joueur à analyser</label>
+                <select id="player">
+                    <option value="">-- Sélectionne un joueur --</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Ligne Bookmaker (optionnel)</label>
+                <label>Ligne Bookmaker (points)</label>
                 <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
             </div>
 
@@ -425,9 +314,6 @@
         <div id="loading" class="card loading" style="display: none;">
             <div class="spinner"></div>
             <p>Analyse en cours avec vraies données NBA...</p>
-            <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
-                Première requête peut prendre 30-60 secondes (cold start gratuit)
-            </p>
         </div>
 
         <div id="result" class="card result">
@@ -437,14 +323,79 @@
 
     <script>
         const API_URL = 'https://nba-betting-1.onrender.com';
+        let currentTeamData = null;
+
+        async function loadTeamInfo() {
+            const teamCode = document.getElementById('team').value;
+            
+            if (!teamCode) {
+                document.getElementById('teamInfo').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('teamLoading').style.display = 'block';
+            document.getElementById('teamInfo').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/team-roster/${teamCode}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentTeamData = data;
+
+                // Affiche info prochain match
+                const nextGame = data.next_game;
+                document.getElementById('nextGameInfo').innerHTML = `
+                    <h3>📅 Dernier match</h3>
+                    <p><strong>Date:</strong> ${nextGame.last_game_date}</p>
+                    <p><strong>Adversaire:</strong> ${nextGame.opponent}</p>
+                    <p><strong>Lieu:</strong> ${nextGame.location}</p>
+                    <p style="color: #999; font-size: 0.9em; margin-top: 10px;">${nextGame.note}</p>
+                `;
+
+                // Remplit dropdown joueurs
+                const playerSelect = document.getElementById('player');
+                playerSelect.innerHTML = '<option value="">-- Sélectionne un joueur --</option>';
+                
+                data.roster.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.name;
+                    option.textContent = `${player.name} - ${player.position}`;
+                    playerSelect.appendChild(option);
+                });
+
+                document.getElementById('teamInfo').style.display = 'block';
+
+            } catch (error) {
+                displayError(`Erreur lors du chargement: ${error.message}`);
+            } finally {
+                document.getElementById('teamLoading').style.display = 'none';
+            }
+        }
 
         async function analyzePlayer() {
             const player = document.getElementById('player').value;
-            const opponent = document.getElementById('opponent').value;
-            const isHome = document.getElementById('isHome').value === 'true';
             const line = document.getElementById('line').value;
 
-            // Affiche loading
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
+            }
+
+            if (!currentTeamData) {
+                alert('Erreur: données équipe manquantes');
+                return;
+            }
+
+            // Auto-remplit depuis les données équipe
+            const nextGame = currentTeamData.next_game;
+            const opponent = nextGame.opponent;
+            const isHome = nextGame.is_home;
+
             document.getElementById('loading').style.display = 'block';
             document.getElementById('result').classList.remove('show');
 
@@ -530,4 +481,52 @@
                 
                 if (data.splits.vs_opponent) {
                     html += `
+                        <div class="stat-item">
+                            <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} pts</div>
+                        </div>
+                    `;
+                }
                 
+                html += '</div></div>';
+            }
+
+            // Recommandation
+            if (data.line_analysis) {
+                const rec = data.line_analysis.recommendation;
+                const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
+                
+                html += `
+                    <div class="recommendation ${recClass}">
+                        ${rec} ${data.line_analysis.bookmaker_line}
+                        <br>
+                        <span style="font-size: 0.8em;">
+                            Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
+                            Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
+                            Confiance: ${data.line_analysis.confidence}
+                        </span>
+                    </div>
+                `;
+            }
+
+            resultDiv.innerHTML = html;
+            resultDiv.classList.add('show');
+        }
+
+        function displayError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <h3>❌ Erreur</h3>
+                    <p>${message}</p>
+                    <p style="margin-top: 15px;">
+                        Le service peut prendre 30-60 secondes à démarrer sur le plan gratuit.
+                        Réessaye dans quelques instants.
+                    </p>
+                </div>
+            `;
+            resultDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
