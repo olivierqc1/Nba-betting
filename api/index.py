@@ -1,5 +1,5 @@
 """
-NBA Betting Analyzer v3.0 - FINAL avec Défense Améliorée
+PARTIE 1/3 - Copie ce code en PREMIER dans api/index.py
 """
 
 from flask import Flask, jsonify, request
@@ -42,7 +42,7 @@ class NBAAnalyzerV3:
             if player:
                 return player[0]['id']
             return None
-        except Exception as e:
+        except:
             return None
     
     def get_season_games(self, player_id):
@@ -60,7 +60,7 @@ class NBAAnalyzerV3:
             df['OPPONENT'] = df['MATCHUP'].str.extract(r'(?:vs\.|@)\s*([A-Z]{3})')[0]
             df = df.sort_values('GAME_DATE', ascending=False).reset_index(drop=True)
             return df
-        except Exception as e:
+        except:
             return None
     
     def calculate_weighted_average(self, games_df):
@@ -91,20 +91,16 @@ class NBAAnalyzerV3:
         splits = {}
         home_games = games_df[games_df['IS_HOME'] == True]
         if len(home_games) > 0:
-            home_avg = home_games['PTS'].mean()
-            home_std = home_games['PTS'].std()
             splits['home'] = {
-                'avg': round(float(home_avg), 1) if not pd.isna(home_avg) else 0.0,
-                'std': round(float(home_std), 1) if not pd.isna(home_std) else 0.0,
+                'avg': round(float(home_games['PTS'].mean()), 1),
+                'std': round(float(home_games['PTS'].std()), 1),
                 'games': int(len(home_games))
             }
         away_games = games_df[games_df['IS_HOME'] == False]
         if len(away_games) > 0:
-            away_avg = away_games['PTS'].mean()
-            away_std = away_games['PTS'].std()
             splits['away'] = {
-                'avg': round(float(away_avg), 1) if not pd.isna(away_avg) else 0.0,
-                'std': round(float(away_std), 1) if not pd.isna(away_std) else 0.0,
+                'avg': round(float(away_games['PTS'].mean()), 1),
+                'std': round(float(away_games['PTS'].std()), 1),
                 'games': int(len(away_games))
             }
         return splits
@@ -123,24 +119,23 @@ class NBAAnalyzerV3:
             r2 = r2_score(y, y_pred)
             residuals = y - y_pred
             s_err = np.sqrt(np.sum(residuals**2) / (n - 2))
-            x_mean = X.mean()
-            x_var = np.sum((X - x_mean)**2)
+            x_var = np.sum((X - X.mean())**2)
             se_slope = s_err / np.sqrt(x_var) if x_var > 0 else 1
             t_stat = model.coef_[0] / se_slope if se_slope > 0 else 0
             p_value = 2 * (1 - stats.t.cdf(abs(t_stat), n - 2))
             slope = float(model.coef_[0])
             if r2 < 0.3:
-                interpretation = "Tendance non fiable (R² faible)"
+                interpretation = "Tendance non fiable"
                 reliable = False
             elif r2 < 0.6:
                 interpretation = "Tendance modérée"
                 reliable = p_value < 0.05
             else:
-                interpretation = "Tendance forte et fiable"
+                interpretation = "Tendance forte"
                 reliable = True
             return {'slope': round(slope, 2), 'r_squared': round(float(r2), 3), 'p_value': round(float(p_value), 4), 'interpretation': interpretation, 'reliable': reliable, 'sample_size': n}
-        except Exception as e:
-            return {'slope': 0.0, 'r_squared': 0.0, 'p_value': 1.0, 'interpretation': 'Erreur calcul', 'reliable': False}
+        except:
+            return {'slope': 0.0, 'r_squared': 0.0, 'p_value': 1.0, 'interpretation': 'Erreur', 'reliable': False}
     
     def adjust_for_matchup(self, base_prediction, opponent, is_home, splits):
         adjusted = base_prediction
@@ -158,13 +153,13 @@ class NBAAnalyzerV3:
     
     def predict_points(self, player_name, opponent, is_home=True, line=None):
         if not NBA_API_AVAILABLE:
-            return {'error': 'nba_api not available', 'player': player_name, 'status': 'API_UNAVAILABLE'}
+            return {'error': 'nba_api not available', 'status': 'API_UNAVAILABLE'}
         player_id = self.get_player_id(player_name)
         if not player_id:
             return {'error': f'Player not found: {player_name}', 'status': 'PLAYER_NOT_FOUND'}
         season_games = self.get_season_games(player_id)
         if season_games is None or len(season_games) < 10:
-            return {'error': 'Not enough games this season', 'player': player_name, 'status': 'INSUFFICIENT_DATA'}
+            return {'error': 'Not enough games', 'status': 'INSUFFICIENT_DATA'}
         weighted_avg, weighted_std = self.calculate_weighted_average(season_games)
         splits = self.calculate_splits(season_games, opponent)
         trend_stats = self.calculate_trend_with_r2(season_games)
@@ -204,7 +199,7 @@ class NBAAnalyzerV3:
                 'std_dev': round(weighted_std, 1),
                 'games_played': len(season_games),
                 'games_used': len(season_games),
-                'consistency_level': 'Excellent' if weighted_std < 3 else 'Bon' if weighted_std < 5 else 'Moyen' if weighted_std < 7 else 'Faible'
+                'consistency_level': 'Excellent' if weighted_std < 3 else 'Bon' if weighted_std < 5 else 'Moyen'
             },
             'trend_analysis': trend_stats,
             'splits': splits,
@@ -224,8 +219,7 @@ class NBAAnalyzerV3:
         return result
 
 analyzer = NBAAnalyzerV3()"""
-PARTIE 2/3 - Routes Flask pour api/index.py
-À ajouter APRÈS la Partie 1
+PARTIE 2/3 - Copie ce code APRÈS la Partie 1 dans api/index.py
 """
 
 @app.route('/', methods=['GET'])
@@ -245,7 +239,7 @@ def analyze_player():
         is_home = data.get('is_home', True)
         line = data.get('line')
         if not player or not opponent:
-            return jsonify({'error': 'Missing required fields: player, opponent'}), 400
+            return jsonify({'error': 'Missing required fields'}), 400
         result = analyzer.predict_points(player, opponent, is_home, line)
         if result.get('status') == 'SUCCESS':
             return jsonify(result)
@@ -259,10 +253,10 @@ def get_player_stats(player_name):
     try:
         player_id = analyzer.get_player_id(player_name)
         if not player_id:
-            return jsonify({'error': f'Player not found: {player_name}', 'status': 'PLAYER_NOT_FOUND'}), 404
+            return jsonify({'error': f'Player not found: {player_name}'}), 404
         season_games = analyzer.get_season_games(player_id)
         if season_games is None:
-            return jsonify({'error': 'No games found', 'status': 'NO_DATA'}), 404
+            return jsonify({'error': 'No games found'}), 404
         all_games_list = []
         for idx, row in season_games.iterrows():
             all_games_list.append({
@@ -279,7 +273,6 @@ def get_player_stats(player_name):
         recent_5 = season_games.head(5)['PTS'].mean()
         home_games = season_games[season_games['IS_HOME'] == True]
         away_games = season_games[season_games['IS_HOME'] == False]
-        volatility = float(season_games['PTS'].std())
         return jsonify({
             'player': player_name,
             'season': '2024-25',
@@ -295,21 +288,19 @@ def get_player_stats(player_name):
                 'home': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0,
                 'away': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
             },
-            'volatility': round(volatility, 2),
+            'volatility': round(float(season_games['PTS'].std()), 2),
             'all_games': all_games_list,
             'status': 'SUCCESS'
         })
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'ERROR'}), 500"""
-PARTIE 3/3 - Route team-roster et handler Render pour api/index.py
-À ajouter APRÈS la Partie 2
+PARTIE 3/3 - Copie ce code EN DERNIER dans api/index.py
 """
 
 @app.route('/api/team-roster/<team_code>', methods=['GET'])
 def get_team_roster(team_code):
     if not NBA_API_AVAILABLE:
-        return jsonify({'error': 'NBA API not available', 'status': 'API_UNAVAILABLE'}), 503
-    
+        return jsonify({'error': 'NBA API not available'}), 503
     try:
         team_dict = {
             'ATL': 1610612737, 'BOS': 1610612738, 'BKN': 1610612751, 'CHA': 1610612766,
@@ -321,43 +312,33 @@ def get_team_roster(team_code):
             'POR': 1610612757, 'SAC': 1610612758, 'SAS': 1610612759, 'TOR': 1610612761,
             'UTA': 1610612762, 'WAS': 1610612764
         }
-        
         team_id = team_dict.get(team_code.upper())
         if not team_id:
-            return jsonify({'error': f'Invalid team code: {team_code}', 'status': 'INVALID_TEAM'}), 400
-        
+            return jsonify({'error': f'Invalid team code: {team_code}'}), 400
         roster = commonteamroster.CommonTeamRoster(team_id=team_id, season='2024-25')
         roster_df = roster.get_data_frames()[0]
-        
         roster_list = []
         for _, player in roster_df.iterrows():
             player_name = str(player['PLAYER'])
             player_id_val = analyzer.get_player_id(player_name)
             volatility = None
-            
             if player_id_val:
                 games = analyzer.get_season_games(player_id_val)
                 if games is not None and len(games) >= 5:
                     volatility = float(games['PTS'].std())
-            
             roster_list.append({
                 'name': player_name,
                 'position': str(player.get('POSITION', 'N/A')),
                 'number': str(player.get('NUM', '')),
                 'volatility': round(volatility, 2) if volatility else None
             })
-        
         roster_list.sort(key=lambda x: x['volatility'] if x['volatility'] else 999)
-        
         gamelog = teamgamelog.TeamGameLog(team_id=team_id, season='2024-25')
         games_df = gamelog.get_data_frames()[0]
-        
         if len(games_df) == 0:
-            return jsonify({'error': 'No games found', 'status': 'NO_DATA'}), 404
-        
+            return jsonify({'error': 'No games found'}), 404
         last_game = games_df.iloc[0]
         opponent_matchup = str(last_game['MATCHUP'])
-        
         if '@' in opponent_matchup:
             opponent = opponent_matchup.split('@')[1].strip()
             is_home = False
@@ -366,7 +347,6 @@ def get_team_roster(team_code):
             opponent = opponent_matchup.split('vs.')[1].strip() if 'vs.' in opponent_matchup else 'Unknown'
             is_home = True
             location = 'Domicile'
-        
         return jsonify({
             'team': team_code,
             'roster': roster_list,
@@ -378,11 +358,9 @@ def get_team_roster(team_code):
             },
             'status': 'SUCCESS'
         })
-        
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'ERROR'}), 500
 
-# Handler pour Render
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
