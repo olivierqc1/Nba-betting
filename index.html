@@ -3,193 +3,614 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Analyzer - DEBUG</title>
+    <title>NBA Betting Analyzer 🏀 v3.0</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+        * {
             margin: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #667eea;
-            text-align: center;
-        }
-        select, input, button {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 0;
             box-sizing: border-box;
         }
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover {
-            background: #5568d3;
-        }
-        .debug {
-            background: #000;
-            color: #0f0;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .loading {
-            text-align: center;
-            color: #667eea;
-            font-size: 18px;
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
         }
-        .hidden {
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
             display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .prediction-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+        }
+
+        /* R² BOX - DIRECT ET VISIBLE */
+        .r2-box {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .r2-box.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .r2-box.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .r2-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .recommendation {
+            background: #10b981;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .recommendation.under {
+            background: #ef4444;
+        }
+
+        .recommendation.skip {
+            background: #f59e0b;
+        }
+
+        .confidence-score {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .confidence-score.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .confidence-score.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .confidence-score-value {
+            font-size: 3.5em;
+            font-weight: 800;
+        }
+
+        .divider {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            margin: 30px 0;
+            border-radius: 2px;
+        }
+
+        @media (max-width: 600px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card">
-            <h1>🏀 NBA Analyzer</h1>
-            <p style="text-align: center; color: #666;">DEBUG MODE</p>
+        <div class="header">
+            <h1>🏀 NBA Betting Analyzer</h1>
+            <p>v3.0 - Points, Assists, Rebounds</p>
+            <div class="badge">✨ COMPLET</div>
         </div>
 
         <div class="card">
-            <label><strong>1. Choisis une équipe</strong></label>
-            <select id="team">
-                <option value="">-- Sélectionne --</option>
-                <option value="ATL">Atlanta Hawks</option>
-                <option value="BOS">Boston Celtics</option>
-                <option value="DEN">Denver Nuggets</option>
-                <option value="GSW">Golden State Warriors</option>
-                <option value="LAL">Los Angeles Lakers</option>
-                <option value="MIA">Miami Heat</option>
-            </select>
-            <button onclick="testTeam()">Charger Roster</button>
+            <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
+            
+            <div class="form-group">
+                <label>Équipe à analyser</label>
+                <select id="team" onchange="loadTeamInfo()">
+                    <option value="">-- Sélectionne une équipe --</option>
+                    <option value="ATL">Atlanta Hawks</option>
+                    <option value="BOS">Boston Celtics</option>
+                    <option value="BKN">Brooklyn Nets</option>
+                    <option value="CHA">Charlotte Hornets</option>
+                    <option value="CHI">Chicago Bulls</option>
+                    <option value="CLE">Cleveland Cavaliers</option>
+                    <option value="DAL">Dallas Mavericks</option>
+                    <option value="DEN">Denver Nuggets</option>
+                    <option value="DET">Detroit Pistons</option>
+                    <option value="GSW">Golden State Warriors</option>
+                    <option value="HOU">Houston Rockets</option>
+                    <option value="IND">Indiana Pacers</option>
+                    <option value="LAC">LA Clippers</option>
+                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="MEM">Memphis Grizzlies</option>
+                    <option value="MIA">Miami Heat</option>
+                    <option value="MIL">Milwaukee Bucks</option>
+                    <option value="MIN">Minnesota Timberwolves</option>
+                    <option value="NOP">New Orleans Pelicans</option>
+                    <option value="NYK">New York Knicks</option>
+                    <option value="OKC">Oklahoma City Thunder</option>
+                    <option value="ORL">Orlando Magic</option>
+                    <option value="PHI">Philadelphia 76ers</option>
+                    <option value="PHX">Phoenix Suns</option>
+                    <option value="POR">Portland Trail Blazers</option>
+                    <option value="SAC">Sacramento Kings</option>
+                    <option value="SAS">San Antonio Spurs</option>
+                    <option value="TOR">Toronto Raptors</option>
+                    <option value="UTA">Utah Jazz</option>
+                    <option value="WAS">Washington Wizards</option>
+                </select>
+            </div>
         </div>
 
-        <div id="loading" class="card loading hidden">
-            ⏳ Chargement...
+        <div id="teamLoading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Chargement roster...</p>
         </div>
 
-        <div id="result" class="card hidden">
-            <h3>Résultat:</h3>
-            <div id="resultContent"></div>
+        <div id="teamInfo" class="card" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #667eea;">2️⃣ Prochain match</h2>
+            
+            <div id="nextGameInfo" class="info-box"></div>
+
+            <div class="form-group">
+                <label>Joueur à analyser</label>
+                <select id="player">
+                    <option value="">-- Sélectionne un joueur --</option>
+                </select>
+            </div>
+
+            <h3 style="color: #667eea; margin: 20px 0;">🏀 Points</h3>
+            <div class="form-group">
+                <label>Ligne Bookmaker (points)</label>
+                <input type="number" id="line-points" placeholder="Ex: 24.5" step="0.5">
+            </div>
+            <button class="btn" onclick="analyzePlayer('points')">🔍 Analyser Points</button>
+
+            <div class="divider"></div>
+
+            <h3 style="color: #f59e0b; margin: 20px 0;">🎯 Assists</h3>
+            <div class="form-group">
+                <label>Ligne Bookmaker (assists)</label>
+                <input type="number" id="line-assists" placeholder="Ex: 7.5" step="0.5">
+            </div>
+            <button class="btn" onclick="analyzePlayer('assists')" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">🔍 Analyser Assists</button>
+
+            <div class="divider"></div>
+
+            <h3 style="color: #10b981; margin: 20px 0;">💪 Rebounds</h3>
+            <div class="form-group">
+                <label>Ligne Bookmaker (rebounds)</label>
+                <input type="number" id="line-rebounds" placeholder="Ex: 10.5" step="0.5">
+            </div>
+            <button class="btn" onclick="analyzePlayer('rebounds')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🔍 Analyser Rebounds</button>
         </div>
 
-        <div class="card">
-            <h3>📊 Debug Console:</h3>
-            <div id="debug" class="debug">Waiting...</div>
+        <div id="loading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyse v3.0 en cours...</p>
+        </div>
+
+        <div id="result" class="card result">
+            <!-- Résultats ici -->
         </div>
     </div>
 
     <script>
         const API_URL = 'https://nba-betting-1.onrender.com';
-        let debugLog = '';
+        let currentTeamData = null;
 
-        function log(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugLog += `[${timestamp}] ${message}\n`;
-            document.getElementById('debug').textContent = debugLog;
-            console.log(message);
-        }
-
-        log('✅ Script loaded');
-        log(`🔗 API URL: ${API_URL}`);
-
-        async function testTeam() {
+        async function loadTeamInfo() {
             const teamCode = document.getElementById('team').value;
             
-            log(`\n🔍 Team selected: ${teamCode}`);
-            
             if (!teamCode) {
-                log('❌ No team selected');
-                alert('Choisis une équipe!');
+                document.getElementById('teamInfo').style.display = 'none';
                 return;
             }
 
-            // Show loading
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('result').classList.add('hidden');
-            
+            document.getElementById('teamLoading').style.display = 'block';
+            document.getElementById('teamInfo').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
             try {
-                const url = `${API_URL}/api/team-roster/${teamCode}`;
-                log(`📡 Fetching: ${url}`);
-                
-                const response = await fetch(url);
-                log(`📥 Response status: ${response.status}`);
+                const response = await fetch(`${API_URL}/api/team-roster/${teamCode}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                log(`✅ Data received`);
-                log(`📋 Team: ${data.team}`);
-                log(`👥 Players: ${data.roster.length}`);
-                log(`🏟️ Next: ${data.next_game.opponent} (${data.next_game.location})`);
-                
-                // Display result
-                let html = `
-                    <p><strong>Équipe:</strong> ${data.team}</p>
-                    <p><strong>Prochain match:</strong> ${data.next_game.opponent}</p>
-                    <p><strong>Lieu:</strong> ${data.next_game.location}</p>
-                    <p><strong>Joueurs trouvés:</strong> ${data.roster.length}</p>
-                    <hr>
-                    <h4>Roster:</h4>
-                    <ul>
+                currentTeamData = data;
+
+                const nextGame = data.next_game;
+                document.getElementById('nextGameInfo').innerHTML = `
+                    <h3>📅 Dernier match</h3>
+                    <p><strong>Date:</strong> ${nextGame.last_game_date}</p>
+                    <p><strong>Adversaire:</strong> ${nextGame.opponent}</p>
+                    <p><strong>Lieu:</strong> ${nextGame.location}</p>
                 `;
+
+                const playerSelect = document.getElementById('player');
+                playerSelect.innerHTML = '<option value="">-- Sélectionne un joueur --</option>';
                 
                 data.roster.forEach(player => {
-                    html += `<li>${player.name} - ${player.position}</li>`;
-                    log(`  - ${player.name}`);
+                    const option = document.createElement('option');
+                    option.value = player.name;
+                    option.textContent = `${player.name} - ${player.position}`;
+                    playerSelect.appendChild(option);
                 });
-                
-                html += `</ul>`;
-                
-                document.getElementById('resultContent').innerHTML = html;
-                document.getElementById('result').classList.remove('hidden');
-                
+
+                document.getElementById('teamInfo').style.display = 'block';
+
             } catch (error) {
-                log(`❌ ERROR: ${error.message}`);
-                log(`❌ Stack: ${error.stack}`);
                 alert(`Erreur: ${error.message}`);
             } finally {
-                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('teamLoading').style.display = 'none';
             }
         }
 
-        // Test au chargement
-        window.addEventListener('load', function() {
-            log('🚀 Window loaded');
-            log('✅ Ready!');
-        });
+        async function analyzePlayer(statType) {
+            const player = document.getElementById('player').value;
+            const line = document.getElementById(`line-${statType}`).value;
 
-        window.addEventListener('error', function(e) {
-            log(`❌ GLOBAL ERROR: ${e.message}`);
-            log(`   File: ${e.filename}:${e.lineno}`);
-        });
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
+            }
+
+            if (!currentTeamData) {
+                alert('Erreur: données équipe manquantes');
+                return;
+            }
+
+            const nextGame = currentTeamData.next_game;
+            const opponent = nextGame.opponent;
+            const isHome = nextGame.is_home;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player: player,
+                        opponent: opponent,
+                        is_home: isHome,
+                        line: line ? parseFloat(line) : null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResults(data, statType);
+
+            } catch (error) {
+                alert(`Erreur: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(data, statType) {
+            const resultDiv = document.getElementById('result');
+            
+            const statLabel = statType === 'points' ? 'pts' : statType === 'assists' ? 'ast' : 'reb';
+            const statEmoji = statType === 'points' ? '🏀' : statType === 'assists' ? '🎯' : '💪';
+            
+            let html = `
+                <div class="prediction-box">
+                    <h2>${statEmoji} ${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} ${statLabel}</div>
+                    <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
+                </div>
+            `;
+
+            // R² BOX - DIRECT EN HAUT
+            if (data.trend_analysis) {
+                const r2 = data.trend_analysis.r_squared;
+                const r2Class = r2 >= 0.7 ? '' : r2 >= 0.5 ? 'medium' : 'low';
+                const r2Label = r2 >= 0.7 ? 'Excellent ✅' : r2 >= 0.5 ? 'Bon ⚠️' : 'Faible ❌';
+                
+                html += `
+                    <div class="r2-box ${r2Class}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">📊 Fiabilité Tendance (R²)</div>
+                        <div class="r2-value">${r2}</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${r2Label}</div>
+                        <p style="margin-top: 10px; font-size: 0.9em;">${data.trend_analysis.interpretation}</p>
+                    </div>
+                `;
+            }
+
+            // SCORE DE CONFIANCE
+            if (data.confidence_score) {
+                const confClass = data.confidence_score.level === 'HIGH' ? '' : 
+                                 data.confidence_score.level === 'MEDIUM' ? 'medium' : 'low';
+                html += `
+                    <div class="confidence-score ${confClass}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Score de Confiance</div>
+                        <div class="confidence-score-value">${data.confidence_score.score}/100</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${data.confidence_score.level}</div>
+                        <p style="margin-top: 15px; font-size: 0.9em;">${data.confidence_score.recommendation}</p>
+                    </div>
+                `;
+            }
+
+            // ANALYSE DÉFENSE
+            if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
+                const def = data.matchup_analysis.defense_impact;
+                
+                let defColor = '#10b981';
+                if (def.category === 'ELITE' || def.category === 'EXCELLENTE') {
+                    defColor = '#ef4444';
+                } else if (def.category === 'BONNE') {
+                    defColor = '#f59e0b';
+                } else if (def.category === 'MOYENNE') {
+                    defColor = '#6b7280';
+                }
+                
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; border-left: 5px solid ${defColor};">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">${def.emoji} Analyse Défense Adverse</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <p><strong>Équipe:</strong> ${def.opponent}</p>
+                                <p><strong>Rating:</strong> ${def.rating}</p>
+                            </div>
+                            <div>
+                                <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
+                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} ${statLabel}</span></p>
+                            </div>
+                        </div>
+                        
+                        <p style="background: white; padding: 12px; border-radius: 8px;">
+                            ${def.explanation}
+                        </p>
+                    </div>
+                `;
+            }
+
+            // STATS SAISON
+            html += `
+                <h3 style="color: #667eea; margin: 20px 0;">📈 Stats Saison</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Moyenne pondérée</div>
+                        <div class="stat-value">${data.season_stats.weighted_avg}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Écart-type</div>
+                        <div class="stat-value">${data.season_stats.std_dev}</div>
+                        <small>${data.season_stats.consistency_level || 'N/A'}</small>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Matchs analysés</div>
+                        <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Tendance</div>
+                        <div class="stat-value">${data.trend_analysis.slope > 0 ? '+' : ''}${data.trend_analysis.slope}</div>
+                        <small>${data.trend_analysis.interpretation}</small>
+                    </div>
+                </div>
+            `;
+
+            // SPLITS
+            if (data.splits) {
+                html += '<h3 style="color: #667eea; margin: 20px 0;">📊 Splits</h3><div class="stat-grid">';
+                
+                if (data.splits.home) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
+                            <div class="stat-value">${data.splits.home.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.away) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
+                            <div class="stat-value">${data.splits.away.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.vs_opponent) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            }
+
+            // RECOMMANDATION
+            if (data.line_analysis) {
+                const rec = data.line_analysis.recommendation;
+                const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
+                
+                const betConf = data.line_analysis.bet_confidence || 
+                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
+                
+                html += `
+                    <div class="recommendation ${recClass}">
+                        ${rec} ${data.line_analysis.bookmaker_line}
+                        <br>
+                        <span style="font-size: 0.8em;">
+                            Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
+                            Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
+                            Confiance: ${betConf}
+                        </span>
+                    </div>
+                `;
+            }
+
+            resultDiv.innerHTML = html;
+            resultDiv.classList.add('show');
+        }
     </script>
 </body>
 </html>
