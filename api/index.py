@@ -1,7 +1,3 @@
-"""
-PARTIE 1/3 - Copie ce code en PREMIER dans api/index.py
-"""
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import numpy as np
@@ -218,11 +214,7 @@ class NBAAnalyzerV3:
         result['status'] = 'SUCCESS'
         return result
 
-analyzer = NBAAnalyzerV3()"""
-PARTIE 2/3 - Copie ce code APRÈS la Partie 1 dans api/index.py
-"""
-
-@app.route('/', methods=['GET'])
+analyzer = NBAAnalyzerV3()@app.route('/', methods=['GET'])
 def root():
     return jsonify({'message': 'NBA Betting Analyzer API v3.0', 'status': 'online', 'season': '2024-25'})
 
@@ -293,11 +285,7 @@ def get_player_stats(player_name):
             'status': 'SUCCESS'
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'status': 'ERROR'}), 500"""
-PARTIE 3/3 - Copie ce code EN DERNIER dans api/index.py
-"""
-
-@app.route('/api/team-roster/<team_code>', methods=['GET'])
+        return jsonify({'error': str(e), 'status': 'ERROR'}), 500@app.route('/api/team-roster/<team_code>', methods=['GET'])
 def get_team_roster(team_code):
     if not NBA_API_AVAILABLE:
         return jsonify({'error': 'NBA API not available'}), 503
