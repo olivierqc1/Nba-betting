@@ -502,6 +502,7 @@
 
         async function loadTeamInfo() {
             const teamCode = document.getElementById('team').value;
+            console.log('🔍 Team selected:', teamCode);
             
             if (!teamCode) {
                 document.getElementById('teamInfo').style.display = 'none';
@@ -513,13 +514,16 @@
             document.getElementById('result').classList.remove('show');
 
             try {
+                console.log('📡 Fetching roster from:', `${API_URL}/api/team-roster/${teamCode}`);
                 const response = await fetch(`${API_URL}/api/team-roster/${teamCode}`);
+                console.log('✅ Response status:', response.status);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
 
                 const data = await response.json();
+                console.log('📊 Data received:', data);
                 currentTeamData = data;
 
                 const nextGame = data.next_game;
@@ -620,11 +624,7 @@
                 const bgColor = game.points >= data.averages.season ? '#d1fae5' : '#fee2e2';
                 html += `
                     <div style="background: ${bgColor}; padding: 10px; margin-bottom: 8px; border-radius: 5px; display: flex; justify-content: space-between;">
-                        <div>
-                            <strong>${game.date}</strong> - ${game.matchup}
-                            <br><small>${game.location}</small>
-                        </div>
-                        <div style="font-size: 1.5em; font-weight: 700; color: #667e
+      
         function displayResults(data, statType) {
             const resultDiv = document.getElementById('result');
             
