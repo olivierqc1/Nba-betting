@@ -61,6 +61,35 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
+        /* SECTIONS STATS */
+        .stat-section {
+            border-left: 5px solid #667eea;
+            padding-left: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-section.assists {
+            border-left-color: #f59e0b;
+        }
+
+        .stat-section.rebounds {
+            border-left-color: #10b981;
+        }
+
+        .stat-section h3 {
+            color: #667eea;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .stat-section.assists h3 {
+            color: #f59e0b;
+        }
+
+        .stat-section.rebounds h3 {
+            color: #10b981;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -108,6 +137,14 @@
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+        }
+
+        .btn.assists {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .btn.rebounds {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
 
         .info-box {
@@ -163,6 +200,30 @@
         }
 
         .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+        }
+
+        /* R² BOX */
+        .r2-box {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .r2-box.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .r2-box.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .r2-value {
             font-size: 3em;
             font-weight: 800;
             margin: 10px 0;
@@ -302,6 +363,13 @@
             margin-top: 20px;
         }
 
+        .divider {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            margin: 40px 0;
+            border-radius: 2px;
+        }
+
         @media (max-width: 600px) {
             .stat-grid, .ab-test-grid {
                 grid-template-columns: 1fr;
@@ -313,8 +381,8 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Betting Analyzer</h1>
-            <p>v3.0 - Outliers, R², Test A/B, Défense</p>
-            <div class="badge">✨ COMPLET</div>
+            <p>v3.0 - Points, Assists, Rebounds</p>
+            <div class="badge">✨ MULTI-STATS</div>
         </div>
 
         <div class="card">
@@ -375,16 +443,43 @@
                 </select>
             </div>
 
-            <button class="btn" onclick="viewPlayerStats()" style="background: #3b82f6; margin-bottom: 15px;">
+            <button class="btn" onclick="viewPlayerStats()" style="background: #3b82f6; margin-bottom: 20px;">
                 📊 Voir Stats Complètes
             </button>
 
-            <div class="form-group">
-                <label>Ligne Bookmaker (points)</label>
-                <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
+            <!-- SECTION POINTS -->
+            <div class="stat-section points">
+                <h3>🏀 Points</h3>
+                <div class="form-group">
+                    <label>Ligne Bookmaker (points)</label>
+                    <input type="number" id="line-points" placeholder="Ex: 24.5" step="0.5">
+                </div>
+                <button class="btn" onclick="analyzePlayer('points')">🔍 Analyser Points</button>
             </div>
 
-            <button class="btn" onclick="analyzePlayer()">🔍 Analyser (v3.0)</button>
+            <div class="divider"></div>
+
+            <!-- SECTION ASSISTS -->
+            <div class="stat-section assists">
+                <h3>🎯 Assists</h3>
+                <div class="form-group">
+                    <label>Ligne Bookmaker (assists)</label>
+                    <input type="number" id="line-assists" placeholder="Ex: 7.5" step="0.5">
+                </div>
+                <button class="btn assists" onclick="analyzePlayer('assists')">🔍 Analyser Assists</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- SECTION REBOUNDS -->
+            <div class="stat-section rebounds">
+                <h3>💪 Rebounds</h3>
+                <div class="form-group">
+                    <label>Ligne Bookmaker (rebounds)</label>
+                    <input type="number" id="line-rebounds" placeholder="Ex: 10.5" step="0.5">
+                </div>
+                <button class="btn rebounds" onclick="analyzePlayer('rebounds')">🔍 Analyser Rebounds</button>
+            </div>
         </div>
 
         <div id="statsViewer" class="card" style="display: none;">
@@ -393,7 +488,7 @@
 
         <div id="loading" class="card loading" style="display: none;">
             <div class="spinner"></div>
-            <p>Analyse v3.0 en cours (outliers, R², défense)...</p>
+            <p>Analyse v3.0 en cours...</p>
         </div>
 
         <div id="result" class="card result">
@@ -433,7 +528,6 @@
                     <p><strong>Date:</strong> ${nextGame.last_game_date}</p>
                     <p><strong>Adversaire:</strong> ${nextGame.opponent}</p>
                     <p><strong>Lieu:</strong> ${nextGame.location}</p>
-                    <p style="color: #999; font-size: 0.9em; margin-top: 10px;">${nextGame.note || 'Vérifie le calendrier NBA'}</p>
                 `;
 
                 const playerSelect = document.getElementById('player');
@@ -450,7 +544,7 @@
                 document.getElementById('teamInfo').style.display = 'block';
 
             } catch (error) {
-                displayError(`Erreur lors du chargement: ${error.message}`);
+                displayError(`Erreur: ${error.message}`);
             } finally {
                 document.getElementById('teamLoading').style.display = 'none';
             }
@@ -530,78 +624,39 @@
                             <strong>${game.date}</strong> - ${game.matchup}
                             <br><small>${game.location}</small>
                         </div>
-                        <div style="font-size: 1.5em; font-weight: 700; color: #667eea;">
-                            ${game.points} pts
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `</div>`;
-
-            statsDiv.innerHTML = html;
-            statsDiv.style.display = 'block';
-        }
-
-        async function analyzePlayer() {
-            const player = document.getElementById('player').value;
-            const line = document.getElementById('line').value;
-
-            if (!player) {
-                alert('Sélectionne un joueur!');
-                return;
-            }
-
-            if (!currentTeamData) {
-                alert('Erreur: données équipe manquantes');
-                return;
-            }
-
-            const nextGame = currentTeamData.next_game;
-            const opponent = nextGame.opponent;
-            const isHome = nextGame.is_home;
-
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').classList.remove('show');
-
-            try {
-                const response = await fetch(`${API_URL}/api/analyze`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        player: player,
-                        opponent: opponent,
-                        is_home: isHome,
-                        line: line ? parseFloat(line) : null
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-                displayResults(data);
-
-            } catch (error) {
-                displayError(error.message);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
-
-        function displayResults(data) {
+                        <div style="font-size: 1.5em; font-weight: 700; color: #667e
+        function displayResults(data, statType) {
             const resultDiv = document.getElementById('result');
+            
+            const statLabel = statType === 'points' ? 'pts' : statType === 'assists' ? 'ast' : 'reb';
+            const statEmoji = statType === 'points' ? '🏀' : statType === 'assists' ? '🎯' : '💪';
             
             let html = `
                 <div class="prediction-box">
-                    <h2>${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
-                    <div class="prediction-value">${data.prediction} pts</div>
+                    <h2>${statEmoji} ${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} ${statLabel}</div>
                     <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
                 </div>
             `;
+
+            // R² BOX - BIEN VISIBLE
+            if (data.trend_analysis) {
+                const r2 = data.trend_analysis.r_squared;
+                const r2Class = r2 >= 0.7 ? '' : r2 >= 0.5 ? 'medium' : 'low';
+                const r2Label = r2 >= 0.7 ? 'Excellent' : r2 >= 0.5 ? 'Bon' : 'Faible';
+                
+                html += `
+                    <div class="r2-box ${r2Class}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">📊 Fiabilité Tendance (R²)</div>
+                        <div class="r2-value">${r2}</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${r2Label}</div>
+                        <p style="margin-top: 10px; font-size: 0.9em;">
+                            ${data.trend_analysis.interpretation}
+                        </p>
+                        <p style="font-size: 0.85em; margin-top: 5px;">p-value: ${data.trend_analysis.p_value}</p>
+                    </div>
+                `;
+            }
 
             // SCORE DE CONFIANCE
             if (data.confidence_score) {
@@ -617,7 +672,7 @@
                 `;
             }
 
-            // ANALYSE DÉFENSE (NOUVEAU)
+            // ANALYSE DÉFENSE
             if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
                 const def = data.matchup_analysis.defense_impact;
                 
@@ -641,7 +696,7 @@
                             </div>
                             <div>
                                 <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
-                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} pts</span></p>
+                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} ${statLabel}</span></p>
                             </div>
                         </div>
                         
@@ -652,7 +707,7 @@
                 `;
             }
             
-            // RÉSUMÉ AJUSTEMENTS (NOUVEAU)
+            // RÉSUMÉ AJUSTEMENTS
             if (data.matchup_analysis) {
                 html += `
                     <div style="background: #e0e7ff; padding: 15px; border-radius: 10px; margin: 15px 0;">
@@ -672,7 +727,7 @@
                 html += `
                         <p style="margin-top: 10px; font-weight: 700; border-top: 2px solid #667eea; padding-top: 10px;">
                             Total ajustements: <span style="color: ${data.matchup_analysis.total_adjustments < 0 ? '#ef4444' : '#10b981'};">
-                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} pts
+                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} ${statLabel}
                             </span>
                         </p>
                     </div>
@@ -706,7 +761,7 @@
                             <strong>Outliers identifiés:</strong>
                             ${data.outlier_analysis.outliers.map(o => `
                                 <div class="outlier-item ${o.severity === 'HIGH' ? 'high' : ''}">
-                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} pts</strong>
+                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} ${statLabel}</strong>
                                     <br><small>${o.reason}</small>
                                     <br><small>Détecté par: ${Object.entries(o.methods_detected).filter(([k,v]) => v).map(([k]) => k).join(', ')}</small>
                                 </div>
@@ -725,7 +780,7 @@
                         <div class="ab-test-grid">
                             <div class="ab-version ${data.ab_test.winner === 'FULL' ? 'winner' : ''}">
                                 <h4>Version A (AVEC outliers)</h4>
-                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} pts</p>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} ${statLabel}</p>
                                 <p><strong>Écart-type:</strong> ${data.ab_test.version_a_full.std_dev}</p>
                                 <p><strong>R²:</strong> ${data.ab_test.version_a_full.r_squared}</p>
                                 <p><strong>Matchs:</strong> ${data.ab_test.version_a_full.games_used}</p>
@@ -733,7 +788,7 @@
                             
                             <div class="ab-version ${data.ab_test.winner === 'CLEAN' ? 'winner' : ''}">
                                 <h4>Version B (SANS outliers) ${data.ab_test.winner === 'CLEAN' ? '✅' : ''}</h4>
-                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} pts</p>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} ${statLabel}</p>
                                 <p><strong>Écart-type:</strong> ${data.ab_test.version_b_clean.std_dev}</p>
                                 <p><strong>R²:</strong> ${data.ab_test.version_b_clean.r_squared}</p>
                                 <p><strong>Matchs:</strong> ${data.ab_test.version_b_clean.games_used}</p>
@@ -765,21 +820,13 @@
                         <div class="stat-label">Matchs analysés</div>
                         <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
                     </div>
-            `;
-
-            // TENDANCE + R²
-            if (data.trend_analysis) {
-                html += `
                     <div class="stat-item">
-                        <div class="stat-label">Tendance (R²=${data.trend_analysis.r_squared})</div>
+                        <div class="stat-label">Tendance</div>
                         <div class="stat-value">${data.trend_analysis.slope > 0 ? '+' : ''}${data.trend_analysis.slope}</div>
                         <small>${data.trend_analysis.interpretation}</small>
-                        <small>p-value: ${data.trend_analysis.p_value}</small>
                     </div>
-                `;
-            }
-
-            html += `</div>`;
+                </div>
+            `;
 
             // SPLITS
             if (data.splits) {
@@ -789,7 +836,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
-                            <div class="stat-value">${data.splits.home.avg} pts</div>
+                            <div class="stat-value">${data.splits.home.avg} ${statLabel}</div>
                         </div>
                     `;
                 }
@@ -798,7 +845,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
-                            <div class="stat-value">${data.splits.away.avg} pts</div>
+                            <div class="stat-value">${data.splits.away.avg} ${statLabel}</div>
                         </div>
                     `;
                 }
@@ -807,7 +854,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
-                            <div class="stat-value">${data.splits.vs_opponent.avg} pts</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} ${statLabel}</div>
                         </div>
                     `;
                 }
@@ -820,7 +867,6 @@
                 const rec = data.line_analysis.recommendation;
                 const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
                 
-                // Utilise le score de confiance général si bet_confidence est vide
                 const betConf = data.line_analysis.bet_confidence || 
                                 (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
                 
@@ -848,7 +894,7 @@
                     <h3>❌ Erreur</h3>
                     <p>${message}</p>
                     <p style="margin-top: 15px;">
-                        Le service peut prendre 30-60 secondes à démarrer sur le plan gratuit.
+                        Le service peut prendre 30-60 secondes à démarrer.
                         Réessaye dans quelques instants.
                     </p>
                 </div>
