@@ -1,6 +1,6 @@
 """
-NBA Betting Analyzer - Complete Version with Stats Viewer
-Real NBA data from nba_api with detailed game history
+NBA Betting Analyzer v3.0 - COMPLET
+Inclut: R², p-values, tests de confiance, alertes minutes, volatilité
 """
 
 from flask import Flask, jsonify, request
@@ -25,13 +25,19 @@ except ImportError as e:
     NBA_API_AVAILABLE = False
     print(f"❌ nba_api not available: {e}")
 
-class NBAAnalyzer:
-    """Analyste NBA avec vraies données, pondération temporelle et splits"""
+class NBAAnalyzerV3:
+    """
+    Analyste NBA v3 avec:
+    - R² et tests de significativité
+    - Alertes temps de jeu
+    - Indicateurs de confiance multiples
+    - Volatilité des joueurs
+    """
     
     def __init__(self):
-        self.current_season = '2025-26'  # ✅ Saison actuelle
+        self.current_season = '2025-26'
         
-        # Ratings défensifs moyens par équipe
+        # Ratings défensifs
         self.defensive_ratings = {
             'ATL': 115.2, 'BOS': 110.5, 'BKN': 114.8, 'CHA': 116.1, 'CHI': 113.9,
             'CLE': 108.2, 'DAL': 112.7, 'DEN': 111.3, 'DET': 115.8, 'GSW': 112.1,
@@ -42,7 +48,7 @@ class NBAAnalyzer:
         }
     
     def get_player_id(self, player_name):
-        """Trouve l'ID d'un joueur par son nom"""
+        """Trouve l'ID d'un joueur"""
         if not NBA_API_AVAILABLE:
             return None
         
@@ -58,7 +64,7 @@ class NBAAnalyzer:
             return None
     
     def get_season_games(self, player_id):
-        """Récupère TOUS les matchs de la saison en cours"""
+        """Récupère TOUS les matchs de la saison"""
         if not NBA_API_AVAILABLE or not player_id:
             return None
         
@@ -72,15 +78,15 @@ class NBAAnalyzer:
             if df.empty:
                 return None
             
-            # Convertit les colonnes importantes
+            # Convertit colonnes
             df['PTS'] = pd.to_numeric(df['PTS'], errors='coerce')
             df['MIN'] = pd.to_numeric(df['MIN'], errors='coerce')
             df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
             
-            # Détermine home/away (vs. = home, @ = away)
+            # Home/Away
             df['IS_HOME'] = df['MATCHUP'].str.contains('vs.')
             
-            # Extrait l'adversaire (3 lettres après vs. ou @)
+            # Adversaire
             df['OPPONENT'] = df['MATCHUP'].str.extract(r'(?:vs\.|@)\s*([A-Z]{3})')[0]
             
             # Trie par date (plus récent en premier)
@@ -94,9 +100,9 @@ class NBAAnalyzer:
     
     def calculate_weighted_average(self, games_df):
         """
-        Calcule moyenne pondérée selon récence
-        - Derniers 10 matchs: 50%
-        - Matchs 11-30: 30%
+        Moyenne pondérée:
+        - 10 derniers: 50%
+        - 11-30: 30%
         - Reste: 20%
         """
         if games_df is None or len(games_df) == 0:
@@ -105,45 +111,40 @@ class NBAAnalyzer:
         points = games_df['PTS'].values
         n = len(points)
         
-        # Crée poids
         weights = np.zeros(n)
         
-        # Derniers 10: poids 0.5
+        # 10 derniers
         if n >= 10:
             weights[:10] = 0.5 / 10
         else:
             weights[:n] = 0.5 / n
         
-        # Matchs 11-30: poids 0.3
+        # 11-30
         if n > 10:
             end_idx = min(30, n)
             count = end_idx - 10
             weights[10:end_idx] = 0.3 / count
         
-        # Reste: poids 0.2
+        # Reste
         if n > 30:
             count = n - 30
             weights[30:] = 0.2 / count
         
-        # Normalise les poids (au cas où)
         weights = weights / weights.sum()
         
-        # Moyenne pondérée
         weighted_avg = np.average(points, weights=weights)
-        
-        # Écart-type pondéré
         weighted_std = np.sqrt(np.average((points - weighted_avg)**2, weights=weights))
         
         return float(weighted_avg), float(weighted_std)
     
     def calculate_splits(self, games_df, opponent=None):
-        """Calcule statistiques détaillées (home/away, vs opponent)"""
+        """Splits home/away/vs opponent"""
         if games_df is None or len(games_df) == 0:
             return {}
         
         splits = {}
         
-        # Home games
+        # Home
         home_games = games_df[games_df['IS_HOME'] == True]
         if len(home_games) > 0:
             home_avg = home_games['PTS'].mean()
@@ -154,7 +155,7 @@ class NBAAnalyzer:
                 'games': int(len(home_games))
             }
         
-        # Away games
+        # Away
         away_games = games_df[games_df['IS_HOME'] == False]
         if len(away_games) > 0:
             away_avg = away_games['PTS'].mean()
@@ -165,7 +166,7 @@ class NBAAnalyzer:
                 'games': int(len(away_games))
             }
         
-        # vs specific opponent
+        # vs opponent
         if opponent:
             vs_opp = games_df[games_df['OPPONENT'] == opponent]
             if len(vs_opp) > 0:
@@ -180,35 +181,215 @@ class NBAAnalyzer:
         
         return splits
     
-    def calculate_trend(self, games_df, num_games=10):
-        """Calcule la tendance récente (régression linéaire)"""
+    def calculate_trend_with_r2(self, games_df, num_games=10):
+        """
+        Calcule tendance + R² + p-value
+        R² mesure la fiabilité de la tendance
+        """
         if games_df is None or len(games_df) < 5:
-            return 0, 0
+            return {
+                'slope': 0.0,
+                'r_squared': 0.0,
+                'p_value': 1.0,
+                'interpretation': 'Données insuffisantes',
+                'reliable': False
+            }
         
         try:
             recent = games_df.head(num_games)
-            X = np.arange(len(recent)).reshape(-1, 1)
+            n = len(recent)
+            
+            X = np.arange(n).reshape(-1, 1)
             y = recent['PTS'].values
             
             model = LinearRegression()
             model.fit(X, y)
             
-            trend = model.coef_[0]
-            r2 = r2_score(y, model.predict(X))
+            y_pred = model.predict(X)
             
-            return float(trend), float(r2)
+            # R²
+            r2 = r2_score(y, y_pred)
+            
+            # P-value pour la pente
+            residuals = y - y_pred
+            s_err = np.sqrt(np.sum(residuals**2) / (n - 2))
+            
+            # Erreur standard de la pente
+            x_mean = X.mean()
+            x_var = np.sum((X - x_mean)**2)
+            se_slope = s_err / np.sqrt(x_var)
+            
+            # T-stat et p-value
+            t_stat = model.coef_[0] / se_slope if se_slope > 0 else 0
+            p_value = 2 * (1 - stats.t.cdf(abs(t_stat), n - 2))
+            
+            # Interprétation
+            slope = float(model.coef_[0])
+            
+            if r2 < 0.3:
+                interpretation = "Tendance non fiable (R² faible)"
+                reliable = False
+            elif r2 < 0.6:
+                interpretation = "Tendance modérée"
+                reliable = p_value < 0.05
+            else:
+                interpretation = "Tendance forte et fiable"
+                reliable = True
+            
+            return {
+                'slope': round(slope, 2),
+                'r_squared': round(float(r2), 3),
+                'p_value': round(float(p_value), 4),
+                'interpretation': interpretation,
+                'reliable': reliable,
+                'sample_size': n
+            }
             
         except Exception as e:
             print(f"Error calculating trend: {e}")
-            return 0.0, 0.0
+            return {
+                'slope': 0.0,
+                'r_squared': 0.0,
+                'p_value': 1.0,
+                'interpretation': 'Erreur calcul',
+                'reliable': False
+            }
+    
+    def calculate_minutes_stats(self, games_df):
+        """
+        Calcule stats minutes + alerte benching
+        """
+        if games_df is None or len(games_df) == 0:
+            return None
+        
+        recent_10 = games_df.head(10)
+        avg_minutes = float(recent_10['MIN'].mean())
+        min_minutes = float(recent_10['MIN'].min())
+        
+        # Alerte
+        alert = None
+        alert_level = 'OK'
+        
+        if avg_minutes < 20:
+            alert = "⚠️ DANGER: Temps de jeu très faible (<20 min). Risque benching élevé!"
+            alert_level = 'CRITICAL'
+        elif avg_minutes < 25:
+            alert = "⚠️ PRUDENCE: Temps de jeu modéré (20-25 min). Surveiller le coach."
+            alert_level = 'WARNING'
+        elif avg_minutes < 30:
+            alert = "ℹ️ Temps de jeu correct mais pas optimal (25-30 min)."
+            alert_level = 'INFO'
+        
+        return {
+            'avg_last_10': round(avg_minutes, 1),
+            'min_last_10': round(min_minutes, 1),
+            'alert': alert,
+            'alert_level': alert_level
+        }def calculate_confidence_score(self, games_df, splits, trend_stats, minutes_stats):
+        """
+        Score de confiance global basé sur plusieurs facteurs:
+        - Sample size (nombre de matchs)
+        - Écart-type (consistance)
+        - R² de la tendance
+        - Temps de jeu
+        - Cohérence des splits
+        
+        Retourne score 0-100 et niveau (LOW/MEDIUM/HIGH)
+        """
+        score = 100
+        factors = {}
+        
+        # 1. Sample size (max 25 pts)
+        n_games = len(games_df)
+        if n_games < 15:
+            sample_penalty = (15 - n_games) * 2
+            score -= sample_penalty
+            factors['sample_size'] = f"-{sample_penalty} pts (seulement {n_games} matchs)"
+        else:
+            factors['sample_size'] = "+0 pts (sample OK)"
+        
+        # 2. Écart-type / Consistance (max 30 pts)
+        std_dev = float(games_df['PTS'].std())
+        if std_dev > 7.0:
+            std_penalty = min(30, (std_dev - 7) * 4)
+            score -= std_penalty
+            factors['consistency'] = f"-{std_penalty:.0f} pts (écart-type {std_dev:.1f} trop élevé)"
+        elif std_dev < 3.0:
+            factors['consistency'] = "+5 pts (très consistant)"
+            score += 5
+        else:
+            factors['consistency'] = "+0 pts (consistance OK)"
+        
+        # 3. R² tendance (max 20 pts)
+        r2 = trend_stats['r_squared']
+        if r2 < 0.3:
+            score -= 15
+            factors['trend_quality'] = f"-15 pts (R²={r2:.3f} - tendance peu fiable)"
+        elif r2 > 0.7:
+            factors['trend_quality'] = f"+5 pts (R²={r2:.3f} - tendance forte)"
+            score += 5
+        else:
+            factors['trend_quality'] = f"+0 pts (R²={r2:.3f} - tendance modérée)"
+        
+        # 4. Minutes de jeu (max 20 pts)
+        if minutes_stats:
+            avg_min = minutes_stats['avg_last_10']
+            if avg_min < 20:
+                score -= 20
+                factors['playing_time'] = f"-20 pts ({avg_min:.1f} min - benching risk)"
+            elif avg_min < 25:
+                score -= 10
+                factors['playing_time'] = f"-10 pts ({avg_min:.1f} min - rotation limitée)"
+            else:
+                factors['playing_time'] = f"+0 pts ({avg_min:.1f} min OK)"
+        
+        # 5. Cohérence splits home/away (max 15 pts)
+        if 'home' in splits and 'away' in splits:
+            home_avg = splits['home']['avg']
+            away_avg = splits['away']['avg']
+            overall_avg = float(games_df['PTS'].mean())
+            
+            # Si écart home/away > 20% de la moyenne, c'est suspect
+            diff = abs(home_avg - away_avg)
+            if diff > overall_avg * 0.25:
+                score -= 15
+                factors['split_consistency'] = f"-15 pts (écart H/A de {diff:.1f} pts trop large)"
+            else:
+                factors['split_consistency'] = "+0 pts (splits cohérents)"
+        
+        # Score final 0-100
+        final_score = max(0, min(100, score))
+        
+        # Niveau
+        if final_score >= 75:
+            level = 'HIGH'
+        elif final_score >= 60:
+            level = 'MEDIUM'
+        else:
+            level = 'LOW'
+        
+        return {
+            'score': round(final_score, 1),
+            'level': level,
+            'factors': factors,
+            'recommendation': self._get_confidence_recommendation(final_score)
+        }
+    
+    def _get_confidence_recommendation(self, score):
+        """Recommandation basée sur le score"""
+        if score >= 80:
+            return "✅ Excellente fiabilité - Bet avec confiance"
+        elif score >= 70:
+            return "✅ Bonne fiabilité - Bet recommandé"
+        elif score >= 60:
+            return "⚠️ Fiabilité moyenne - Bet avec prudence"
+        elif score >= 50:
+            return "⚠️ Fiabilité faible - Réduire la mise"
+        else:
+            return "❌ Fiabilité insuffisante - SKIP ce bet"
     
     def adjust_for_matchup(self, base_prediction, opponent, is_home, splits):
-        """
-        Ajuste prédiction selon:
-        1. Défense adverse
-        2. Home/Away performance réelle du joueur
-        3. Performance historique vs cet adversaire
-        """
+        """Ajuste prédiction selon matchup"""
         adjusted = base_prediction
         adjustments = {}
         
@@ -219,22 +400,20 @@ class NBAAnalyzer:
         adjusted *= defense_factor
         adjustments['defense'] = f"{((defense_factor - 1) * 100):.1f}%"
         
-        # 2. Home/Away split du joueur
+        # 2. Home/Away
         if is_home and 'home' in splits:
-            # Compare home avg vs overall
             home_diff = splits['home']['avg'] - base_prediction
-            adjusted += home_diff * 0.5  # 50% de l'écart
+            adjusted += home_diff * 0.5
             adjustments['home_away'] = f"+{home_diff * 0.5:.1f} pts (home)"
         elif not is_home and 'away' in splits:
             away_diff = splits['away']['avg'] - base_prediction
             adjusted += away_diff * 0.5
             adjustments['home_away'] = f"{away_diff * 0.5:+.1f} pts (away)"
         
-        # 3. vs Opponent historique
+        # 3. vs Opponent
         if 'vs_opponent' in splits and splits['vs_opponent']['games'] >= 3:
             opp_avg = splits['vs_opponent']['avg']
             opp_diff = opp_avg - base_prediction
-            # Plus de poids si beaucoup de matchs
             weight = min(splits['vs_opponent']['games'] / 10, 0.3)
             adjusted += opp_diff * weight
             adjustments['vs_opponent'] = f"{opp_diff * weight:+.1f} pts (history)"
@@ -242,7 +421,7 @@ class NBAAnalyzer:
         return float(adjusted), adjustments
     
     def predict_points(self, player_name, opponent, is_home=True, line=None):
-        """Prédit les points avec analyse complète"""
+        """Prédiction COMPLÈTE avec tous les indicateurs"""
         if not NBA_API_AVAILABLE:
             return {
                 'error': 'nba_api not available',
@@ -250,7 +429,7 @@ class NBAAnalyzer:
                 'status': 'API_UNAVAILABLE'
             }
         
-        # 1. Trouve le joueur
+        # 1. Joueur
         player_id = self.get_player_id(player_name)
         if not player_id:
             return {
@@ -258,7 +437,7 @@ class NBAAnalyzer:
                 'status': 'PLAYER_NOT_FOUND'
             }
         
-        # 2. Récupère TOUTE la saison
+        # 2. Games
         season_games = self.get_season_games(player_id)
         if season_games is None or len(season_games) < 10:
             return {
@@ -267,24 +446,34 @@ class NBAAnalyzer:
                 'status': 'INSUFFICIENT_DATA'
             }
         
-        # 3. Calcule moyenne pondérée
+        # 3. Moyenne pondérée
         weighted_avg, weighted_std = self.calculate_weighted_average(season_games)
         
-        # 4. Calcule splits
+        # 4. Splits
         splits = self.calculate_splits(season_games, opponent)
         
-        # 5. Calcule tendance récente
-        trend, trend_quality = self.calculate_trend(season_games, num_games=10)
+        # 5. Tendance + R²
+        trend_stats = self.calculate_trend_with_r2(season_games, num_games=10)
         
-        # 6. Prédiction de base (moyenne pondérée + tendance)
-        base_prediction = weighted_avg + (trend * 1.5)
+        # 6. Minutes
+        minutes_stats = self.calculate_minutes_stats(season_games)
         
-        # 7. Ajuste selon matchup
+        # 7. Score de confiance global
+        confidence_analysis = self.calculate_confidence_score(
+            season_games, splits, trend_stats, minutes_stats
+        )
+        
+        # 8. Prédiction base
+        base_prediction = weighted_avg
+        if trend_stats['reliable']:
+            base_prediction += (trend_stats['slope'] * 1.5)
+        
+        # 9. Ajustements matchup
         final_prediction, adjustment_details = self.adjust_for_matchup(
             base_prediction, opponent, is_home, splits
         )
         
-        # 8. Intervalle de confiance (95%)
+        # 10. Intervalle confiance 95%
         n = len(season_games)
         se = weighted_std / np.sqrt(n)
         confidence_interval = stats.t.interval(
@@ -294,7 +483,7 @@ class NBAAnalyzer:
             scale=se
         )
         
-        # 9. Analyse ligne bookmaker
+        # 11. Analyse ligne bookmaker
         recommendation = None
         over_probability = None
         edge = None
@@ -312,26 +501,37 @@ class NBAAnalyzer:
             else:
                 recommendation = 'SKIP'
         
-        # 10. Résultats
+        # 12. RÉSULTAT COMPLET
         result = {
             'player': player_name,
             'opponent': opponent,
             'is_home': is_home,
             'prediction': round(final_prediction, 1),
+            
             'confidence_interval': {
                 'lower': round(float(confidence_interval[0]), 1),
                 'upper': round(float(confidence_interval[1]), 1),
-                'confidence_level': '95%'
+                'confidence_level': '95%',
+                'width': round(float(confidence_interval[1] - confidence_interval[0]), 1)
             },
+            
             'season_stats': {
                 'weighted_avg': round(weighted_avg, 1),
                 'std_dev': round(weighted_std, 1),
                 'games_played': len(season_games),
-                'trend': round(trend, 2),
-                'trend_quality': round(trend_quality, 2)
+                'consistency_level': 'Excellent' if weighted_std < 3 else 'Bon' if weighted_std < 5 else 'Moyen' if weighted_std < 7 else 'Faible'
             },
+            
+            'trend_analysis': trend_stats,
+            
+            'minutes_stats': minutes_stats,
+            
+            'confidence_score': confidence_analysis,
+            
             'splits': splits,
+            
             'adjustments': adjustment_details,
+            
             'timestamp': datetime.now().isoformat()
         }
         
@@ -342,7 +542,7 @@ class NBAAnalyzer:
                 'under_probability': round(float(1 - over_probability), 3),
                 'edge': round(float(edge), 3),
                 'recommendation': recommendation,
-                'confidence': 'HIGH' if abs(edge) >= 0.12 else 'MEDIUM' if abs(edge) >= 0.08 else 'LOW',
+                'bet_confidence': 'HIGH' if abs(edge) >= 0.12 else 'MEDIUM' if abs(edge) >= 0.08 else 'LOW',
                 'kelly_criterion': round(float(edge * 2), 3) if abs(edge) >= 0.08 else 0.0
             }
         
@@ -351,48 +551,39 @@ class NBAAnalyzer:
 
 
 # Initialize analyzer
-analyzer = NBAAnalyzer()
+analyzer = NBAAnalyzerV3()
 
 @app.route('/', methods=['GET'])
 def root():
-    """Route racine"""
     return jsonify({
-        'message': 'NBA Betting Analyzer API',
+        'message': 'NBA Betting Analyzer API v3.0',
         'status': 'online',
         'season': '2025-26',
-        'endpoints': {
-            'info': '/api',
-            'health': '/api/health',
-            'analyze': 'POST /api/analyze',
-            'team_roster': 'GET /api/team-roster/<team_code>',
-            'player_stats': 'GET /api/player-stats/<player_name>'
-        }
+        'new_features': [
+            'R² et tests statistiques',
+            'Score de confiance multi-facteurs',
+            'Alertes temps de jeu',
+            'Analyse cohérence splits',
+            'P-values pour tendances'
+        ]
     })
 
 @app.route('/api', methods=['GET'])
 def api_info():
     return jsonify({
         'name': 'NBA Betting Analyzer API',
-        'version': '2.2',
+        'version': '3.0',
         'season': '2025-26',
-        'data_source': 'nba_api (REAL DATA - Full Season)',
+        'data_source': 'nba_api (REAL DATA)',
         'nba_api_status': 'AVAILABLE' if NBA_API_AVAILABLE else 'UNAVAILABLE',
         'features': [
-            'Weighted temporal analysis (50% recent, 30% mid, 20% old)',
-            'Home/Away splits',
-            'Head-to-head history',
-            'Opponent defense adjustment',
-            '95% confidence intervals',
-            'Kelly Criterion bet sizing',
-            'Full game history viewer'
-        ],
-        'endpoints': {
-            'health': 'GET /api/health',
-            'analyze': 'POST /api/analyze',
-            'team_roster': 'GET /api/team-roster/<team_code>',
-            'player_stats': 'GET /api/player-stats/<player_name>'
-        },
-        'timestamp': datetime.now().isoformat()
+            'R² regression analysis',
+            'P-values for trends',
+            'Multi-factor confidence score',
+            'Playing time alerts',
+            'Split consistency checks',
+            'Kelly Criterion sizing'
+        ]
     })
 
 @app.route('/api/health', methods=['GET'])
@@ -401,13 +592,12 @@ def health():
         'status': 'ok',
         'nba_api': NBA_API_AVAILABLE,
         'season': '2025-26',
-        'data_source': 'REAL (Full Season)' if NBA_API_AVAILABLE else 'UNAVAILABLE',
-        'timestamp': datetime.now().isoformat()
+        'version': '3.0'
     })
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_player():
-    """Analyse complète d'un joueur"""
+    """Analyse complète v3"""
     try:
         data = request.json
         
@@ -436,10 +626,7 @@ def analyze_player():
 
 @app.route('/api/player-stats/<player_name>', methods=['GET'])
 def get_player_stats(player_name):
-    """
-    Endpoint pour voir TOUTES les stats d'un joueur avec historique complet
-    Usage: /api/player-stats/Jayson Tatum
-    """
+    """Stats complètes joueur"""
     try:
         player_id = analyzer.get_player_id(player_name)
         if not player_id:
@@ -455,7 +642,7 @@ def get_player_stats(player_name):
                 'status': 'NO_DATA'
             }), 404
         
-        # Convertit TOUS les matchs
+        # Tous les matchs
         all_games_list = []
         for idx, row in season_games.iterrows():
             all_games_list.append({
@@ -469,22 +656,14 @@ def get_player_stats(player_name):
                 'location': 'Domicile' if row['IS_HOME'] else 'Extérieur'
             })
         
-        # Stats globales
+        # Stats
         recent_10 = season_games.head(10)['PTS'].mean()
         recent_5 = season_games.head(5)['PTS'].mean()
         home_games = season_games[season_games['IS_HOME'] == True]
         away_games = season_games[season_games['IS_HOME'] == False]
         
-        # Splits par adversaire (top 5)
-        opponent_splits = {}
-        for opp in season_games['OPPONENT'].unique():
-            opp_games = season_games[season_games['OPPONENT'] == opp]
-            if len(opp_games) >= 2:
-                opponent_splits[opp] = {
-                    'games': int(len(opp_games)),
-                    'avg': round(float(opp_games['PTS'].mean()), 1),
-                    'last': float(opp_games.iloc[0]['PTS'])
-                }
+        # Volatilité
+        volatility = float(season_games['PTS'].std())
         
         return jsonify({
             'player': player_name,
@@ -501,19 +680,8 @@ def get_player_stats(player_name):
                 'home': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0,
                 'away': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
             },
-            'splits': {
-                'home': {
-                    'games': int(len(home_games)),
-                    'avg': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0
-                },
-                'away': {
-                    'games': int(len(away_games)),
-                    'avg': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
-                },
-                'by_opponent': opponent_splits
-            },
+            'volatility': round(volatility, 2),
             'all_games': all_games_list,
-            'data_source': 'NBA API (REAL DATA)',
             'status': 'SUCCESS'
         })
         
@@ -525,7 +693,7 @@ def get_player_stats(player_name):
 
 @app.route('/api/team-roster/<team_code>', methods=['GET'])
 def get_team_roster(team_code):
-    """Retourne roster + prochain match d'une équipe"""
+    """Roster équipe avec volatilité"""
     if not NBA_API_AVAILABLE:
         return jsonify({
             'error': 'NBA API not available',
@@ -533,7 +701,6 @@ def get_team_roster(team_code):
         }), 503
     
     try:
-        # Map team code to team ID
         team_dict = {
             'ATL': 1610612737, 'BOS': 1610612738, 'BKN': 1610612751, 'CHA': 1610612766,
             'CHI': 1610612741, 'CLE': 1610612739, 'DAL': 1610612742, 'DEN': 1610612743,
@@ -552,47 +719,51 @@ def get_team_roster(team_code):
                 'status': 'INVALID_TEAM'
             }), 400
         
-        # Récupère roster
         roster = commonteamroster.CommonTeamRoster(team_id=team_id, season='2025-26')
         roster_df = roster.get_data_frames()[0]
         
-        # Liste des joueurs
         roster_list = []
         for _, player in roster_df.iterrows():
+            player_name = str(player['PLAYER'])
+            player_id_val = analyzer.get_player_id(player_name)
+            volatility = None
+            
+            if player_id_val:
+                games = analyzer.get_season_games(player_id_val)
+                if games is not None and len(games) >= 5:
+                    volatility = float(games['PTS'].std())
+            
             roster_list.append({
-                'name': str(player['PLAYER']),
+                'name': player_name,
                 'position': str(player.get('POSITION', 'N/A')),
-                'number': str(player.get('NUM', ''))
+                'number': str(player.get('NUM', '')),
+                'volatility': round(volatility, 2) if volatility else None
             })
         
-        # Récupère derniers matchs
+        # Trie par volatilité (plus consistants en premier)
+        roster_list.sort(key=lambda x: x['volatility'] if x['volatility'] else 999)
+        
         gamelog = teamgamelog.TeamGameLog(team_id=team_id, season='2025-26')
         games_df = gamelog.get_data_frames()[0]
         
-        # Trie par date
         games_df['GAME_DATE'] = pd.to_datetime(games_df['GAME_DATE'])
         games_df = games_df.sort_values('GAME_DATE', ascending=False)
         
-        # Dernier match
         last_game = games_df.iloc[0]
-        last_game_date = last_game['GAME_DATE']
-        
-        # Extrait opponent et home/away
         matchup = str(last_game['MATCHUP'])
-        is_home = 'vs.' in matchup
-        opponent = matchup.split('vs.' if is_home else '@')[1].strip()
+        is_home_val = 'vs.' in matchup
+        opponent_val = matchup.split('vs.' if is_home_val else '@')[1].strip()
         
         next_game_info = {
-            'last_game_date': str(last_game_date.date()),
-            'opponent': opponent,
-            'is_home': is_home,
-            'location': 'Domicile' if is_home else 'Extérieur',
-            'note': 'Info basée sur dernier match - Vérifier le calendrier NBA pour le prochain'
+            'last_game_date': str(last_game['GAME_DATE'].date()),
+            'opponent': opponent_val,
+            'is_home': is_home_val,
+            'location': 'Domicile' if is_home_val else 'Extérieur'
         }
         
         return jsonify({
             'team': team_code.upper(),
-            'roster': sorted(roster_list, key=lambda x: x['name']),
+            'roster': roster_list,
             'next_game': next_game_info,
             'status': 'SUCCESS'
         })
@@ -607,4 +778,3 @@ if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
- 
