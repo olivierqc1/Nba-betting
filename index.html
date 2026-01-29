@@ -820,6 +820,10 @@
                 const rec = data.line_analysis.recommendation;
                 const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
                 
+                // Utilise le score de confiance général si bet_confidence est vide
+                const betConf = data.line_analysis.bet_confidence || 
+                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
+                
                 html += `
                     <div class="recommendation ${recClass}">
                         ${rec} ${data.line_analysis.bookmaker_line}
@@ -827,7 +831,7 @@
                         <span style="font-size: 0.8em;">
                             Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
                             Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
-                            Confiance: ${data.line_analysis.bet_confidence || 'N/A'}
+                            Confiance: ${betConf}
                         </span>
                     </div>
                 `;
@@ -854,4 +858,3 @@
     </script>
 </body>
 </html>
- 
