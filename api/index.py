@@ -870,4 +870,4 @@ def get_team_roster(team_code):
         
         roster_list.sort(key=lambda x: x['volatility'] if x['volatility'] else 999)
         
-        gamelog = teamgamelog.TeamGameLog(
+        gamelog = teamgamelog.TeamGameLog( 
