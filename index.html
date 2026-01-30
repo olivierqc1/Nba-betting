@@ -61,43 +61,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
-        /* ONGLETS */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .tab {
-            padding: 12px 24px;
-            background: transparent;
-            border: none;
-            border-bottom: 3px solid transparent;
-            color: #666;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .tab:hover {
-            color: #667eea;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
         .form-group {
             margin-bottom: 20px;
         }
@@ -200,30 +163,6 @@
         }
 
         .prediction-value {
-            font-size: 3em;
-            font-weight: 800;
-            margin: 10px 0;
-        }
-
-        /* R² BOX - BIEN VISIBLE */
-        .r2-box {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .r2-box.medium {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        .r2-box.low {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        }
-
-        .r2-value {
             font-size: 3em;
             font-weight: 800;
             margin: 10px 0;
@@ -367,9 +306,6 @@
             .stat-grid, .ab-test-grid {
                 grid-template-columns: 1fr;
             }
-            .tabs {
-                overflow-x: auto;
-            }
         }
     </style>
 </head>
@@ -377,235 +313,295 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Betting Analyzer</h1>
-            <p>v3.0 - Outliers, R², Test A/B, Défense</p>
+            <p>v3.0 - Outliers, R², Test A/B</p>
             <div class="badge">✨ COMPLET</div>
         </div>
 
-        <!-- ONGLETS -->
         <div class="card">
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('points')">🏀 Points</button>
-                <button class="tab" onclick="switchTab('assists')">🎯 Assists</button>
-                <button class="tab" onclick="switchTab('rebounds')">💪 Rebounds</button>
-            </div>
-
-            <!-- ONGLET POINTS -->
-            <div id="tab-points" class="tab-content active">
-                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
-                
-                <div class="form-group">
-                    <label>Équipe à analyser</label>
-                    <select id="team-points" onchange="loadTeamInfo('points')">
-                        <option value="">-- Sélectionne une équipe --</option>
-                        <option value="ATL">Atlanta Hawks</option>
-                        <option value="BOS">Boston Celtics</option>
-                        <option value="BKN">Brooklyn Nets</option>
-                        <option value="CHA">Charlotte Hornets</option>
-                        <option value="CHI">Chicago Bulls</option>
-                        <option value="CLE">Cleveland Cavaliers</option>
-                        <option value="DAL">Dallas Mavericks</option>
-                        <option value="DEN">Denver Nuggets</option>
-                        <option value="DET">Detroit Pistons</option>
-                        <option value="GSW">Golden State Warriors</option>
-                        <option value="HOU">Houston Rockets</option>
-                        <option value="IND">Indiana Pacers</option>
-                        <option value="LAC">LA Clippers</option>
-                        <option value="LAL">Los Angeles Lakers</option>
-                        <option value="MEM">Memphis Grizzlies</option>
-                        <option value="MIA">Miami Heat</option>
-                        <option value="MIL">Milwaukee Bucks</option>
-                        <option value="MIN">Minnesota Timberwolves</option>
-                        <option value="NOP">New Orleans Pelicans</option>
-                        <option value="NYK">New York Knicks</option>
-                        <option value="OKC">Oklahoma City Thunder</option>
-                        <option value="ORL">Orlando Magic</option>
-                        <option value="PHI">Philadelphia 76ers</option>
-                        <option value="PHX">Phoenix Suns</option>
-                        <option value="POR">Portland Trail Blazers</option>
-                        <option value="SAC">Sacramento Kings</option>
-                        <option value="SAS">San Antonio Spurs</option>
-                        <option value="TOR">Toronto Raptors</option>
-                        <option value="UTA">Utah Jazz</option>
-                        <option value="WAS">Washington Wizards</option>
-                    </select>
-                </div>
-
-                <div id="teamLoading-points" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Chargement roster...</p>
-                </div>
-
-                <div id="teamInfo-points" style="display: none;">
-                    <h2 style="margin: 20px 0; color: #667eea;">2️⃣ Prochain match</h2>
-                    <div id="nextGameInfo-points" class="info-box"></div>
-
-                    <div class="form-group">
-                        <label>Joueur à analyser</label>
-                        <select id="player-points">
-                            <option value="">-- Sélectionne un joueur --</option>
-                        </select>
-                    </div>
-
-                    <button class="btn" onclick="viewPlayerStats('points')" style="background: #3b82f6; margin-bottom: 15px;">
-                        📊 Voir Stats Complètes
-                    </button>
-
-                    <div class="form-group">
-                        <label>Ligne Bookmaker (points)</label>
-                        <input type="number" id="line-points" placeholder="Ex: 24.5" step="0.5">
-                    </div>
-
-                    <button class="btn" onclick="analyzePlayer('points')">🔍 Analyser Points</button>
-                </div>
-            </div>
-
-            <!-- ONGLET ASSISTS -->
-            <div id="tab-assists" class="tab-content">
-                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
-                
-                <div class="form-group">
-                    <label>Équipe à analyser</label>
-                    <select id="team-assists" onchange="loadTeamInfo('assists')">
-                        <option value="">-- Sélectionne une équipe --</option>
-                        <option value="ATL">Atlanta Hawks</option>
-                        <option value="BOS">Boston Celtics</option>
-                        <option value="BKN">Brooklyn Nets</option>
-                        <option value="CHA">Charlotte Hornets</option>
-                        <option value="CHI">Chicago Bulls</option>
-                        <option value="CLE">Cleveland Cavaliers</option>
-                        <option value="DAL">Dallas Mavericks</option>
-                        <option value="DEN">Denver Nuggets</option>
-                        <option value="DET">Detroit Pistons</option>
-                        <option value="GSW">Golden State Warriors</option>
-                        <option value="HOU">Houston Rockets</option>
-                        <option value="IND">Indiana Pacers</option>
-                        <option value="LAC">LA Clippers</option>
-                        <option value="LAL">Los Angeles Lakers</option>
-                        <option value="MEM">Memphis Grizzlies</option>
-                        <option value="MIA">Miami Heat</option>
-                        <option value="MIL">Milwaukee Bucks</option>
-                        <option value="MIN">Minnesota Timberwolves</option>
-                        <option value="NOP">New Orleans Pelicans</option>
-                        <option value="NYK">New York Knicks</option>
-                        <option value="OKC">Oklahoma City Thunder</option>
-                        <option value="ORL">Orlando Magic</option>
-                        <option value="PHI">Philadelphia 76ers</option>
-                        <option value="PHX">Phoenix Suns</option>
-                        <option value="POR">Portland Trail Blazers</option>
-                        <option value="SAC">Sacramento Kings</option>
-                        <option value="SAS">San Antonio Spurs</option>
-                        <option value="TOR">Toronto Raptors</option>
-                        <option value="UTA">Utah Jazz</option>
-                        <option value="WAS">Washington Wizards</option>
-                    </select>
-                </div>
-
-                <div id="teamLoading-assists" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Chargement roster...</p>
-                </div>
-
-                <div id="teamInfo-assists" style="display: none;">
-                    <h2 style="margin: 20px 0; color: #667eea;">2️⃣ Prochain match</h2>
-                    <div id="nextGameInfo-assists" class="info-box"></div>
-
-                    <div class="form-group">
-                        <label>Joueur à analyser</label>
-                        <select id="player-assists">
-                            <option value="">-- Sélectionne un joueur --</option>
-                        </select>
-                    </div>
-
-                    <button class="btn" onclick="viewPlayerStats('assists')" style="background: #3b82f6; margin-bottom: 15px;">
-                        📊 Voir Stats Complètes
-                    </button>
-
-                    <div class="form-group">
-                        <label>Ligne Bookmaker (assists)</label>
-                        <input type="number" id="line-assists" placeholder="Ex: 7.5" step="0.5">
-                    </div>
-
-                    <button class="btn" onclick="analyzePlayer('assists')">🔍 Analyser Assists</button>
-                </div>
-            </div>
-
-            <!-- ONGLET REBOUNDS -->
-            <div id="tab-rebounds" class="tab-content">
-                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
-                
-                <div class="form-group">
-                    <label>Équipe à analyser</label>
-                    <select id="team-rebounds" onchange="loadTeamInfo('rebounds')">
-                        <option value="">-- Sélectionne une équipe --</option>
-                        <option value="ATL">Atlanta Hawks</option>
-                        <option value="BOS">Boston Celtics</option>
-                        <option value="BKN">Brooklyn Nets</option>
-                        <option value="CHA">Charlotte Hornets</option>
-                        <option value="CHI">Chicago Bulls</option>
-                        <option value="CLE">Cleveland Cavaliers</option>
-                        <option value="DAL">Dallas Mavericks</option>
-                        <option value="DEN">Denver Nuggets</option>
-                        <option value="DET">Detroit Pistons</option>
-                        <option value="GSW">Golden State Warriors</option>
-                        <option value="HOU">Houston Rockets</option>
-                        <option value="IND">Indiana Pacers</option>
-                        <option value="LAC">LA Clippers</option>
-                        <option value="LAL">Los Angeles Lakers</option>
-                        <option value="MEM">Memphis Grizzlies</option>
-                        <option value="MIA">Miami Heat</option>
-                        <option value="MIL">Milwaukee Bucks</option>
-                        <option value="MIN">Minnesota Timberwolves</option>
-                        <option value="NOP">New Orleans Pelicans</option>
-                        <option value="NYK">New York Knicks</option>
-                        <option value="OKC">Oklahoma City Thunder</option>
-                        <option value="ORL">Orlando Magic</option>
-                        <option value="PHI">Philadelphia 76ers</option>
-                        <option value="PHX">Phoenix Suns</option>
-                        <option value="POR">Portland Trail Blazers</option>
-                        <option value="SAC">Sacramento Kings</option>
-                        <option value="SAS">San Antonio Spurs</option>
-                        <option value="TOR">Toronto Raptors</option>
-                        <option value="UTA">Utah Jazz</option>
-                        <option value="WAS">Washington Wizards</option>
-                    </select>
-                </div>
-
-                <div id="teamLoading-rebounds" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Chargement roster...</p>
-               
-        function displayResults(data, statType) {
-            const resultDiv = document.getElementById('result');
+            <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
             
-            const statLabel = statType === 'points' ? 'pts' : statType === 'assists' ? 'ast' : 'reb';
-            const statEmoji = statType === 'points' ? '🏀' : statType === 'assists' ? '🎯' : '💪';
+            <div class="form-group">
+                <label>Équipe à analyser</label>
+                <select id="team" onchange="loadTeamInfo()">
+                    <option value="">-- Sélectionne une équipe --</option>
+                    <option value="ATL">Atlanta Hawks</option>
+                    <option value="BOS">Boston Celtics</option>
+                    <option value="BKN">Brooklyn Nets</option>
+                    <option value="CHA">Charlotte Hornets</option>
+                    <option value="CHI">Chicago Bulls</option>
+                    <option value="CLE">Cleveland Cavaliers</option>
+                    <option value="DAL">Dallas Mavericks</option>
+                    <option value="DEN">Denver Nuggets</option>
+                    <option value="DET">Detroit Pistons</option>
+                    <option value="GSW">Golden State Warriors</option>
+                    <option value="HOU">Houston Rockets</option>
+                    <option value="IND">Indiana Pacers</option>
+                    <option value="LAC">LA Clippers</option>
+                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="MEM">Memphis Grizzlies</option>
+                    <option value="MIA">Miami Heat</option>
+                    <option value="MIL">Milwaukee Bucks</option>
+                    <option value="MIN">Minnesota Timberwolves</option>
+                    <option value="NOP">New Orleans Pelicans</option>
+                    <option value="NYK">New York Knicks</option>
+                    <option value="OKC">Oklahoma City Thunder</option>
+                    <option value="ORL">Orlando Magic</option>
+                    <option value="PHI">Philadelphia 76ers</option>
+                    <option value="PHX">Phoenix Suns</option>
+                    <option value="POR">Portland Trail Blazers</option>
+                    <option value="SAC">Sacramento Kings</option>
+                    <option value="SAS">San Antonio Spurs</option>
+                    <option value="TOR">Toronto Raptors</option>
+                    <option value="UTA">Utah Jazz</option>
+                    <option value="WAS">Washington Wizards</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="teamLoading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Chargement roster...</p>
+        </div>
+
+        <div id="teamInfo" class="card" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #667eea;">2️⃣ Prochain match</h2>
+            
+            <div id="nextGameInfo" class="info-box"></div>
+
+            <div class="form-group">
+                <label>Joueur à analyser</label>
+                <select id="player">
+                    <option value="">-- Sélectionne un joueur --</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="viewPlayerStats()" style="background: #3b82f6; margin-bottom: 15px;">
+                📊 Voir Stats Complètes
+            </button>
+
+            <div class="form-group">
+                <label>Ligne Bookmaker (points)</label>
+                <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
+            </div>
+
+            <button class="btn" onclick="analyzePlayer()">🔍 Analyser (v3.0)</button>
+        </div>
+
+        <div id="statsViewer" class="card" style="display: none;">
+            <!-- Stats complètes -->
+        </div>
+
+        <div id="loading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyse v3.0 en cours (outliers, R², test A/B)...</p>
+        </div>
+
+        <div id="result" class="card result">
+            <!-- Résultats ici -->
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://nba-betting-1.onrender.com';
+        let currentTeamData = null;
+
+        async function loadTeamInfo() {
+            const teamCode = document.getElementById('team').value;
+            
+            if (!teamCode) {
+                document.getElementById('teamInfo').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('teamLoading').style.display = 'block';
+            document.getElementById('teamInfo').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/team-roster/${teamCode}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentTeamData = data;
+
+                const nextGame = data.next_game;
+                document.getElementById('nextGameInfo').innerHTML = `
+                    <h3>📅 Dernier match</h3>
+                    <p><strong>Date:</strong> ${nextGame.last_game_date}</p>
+                    <p><strong>Adversaire:</strong> ${nextGame.opponent}</p>
+                    <p><strong>Lieu:</strong> ${nextGame.location}</p>
+                    <p style="color: #999; font-size: 0.9em; margin-top: 10px;">${nextGame.note || 'Vérifie le calendrier NBA'}</p>
+                `;
+
+                const playerSelect = document.getElementById('player');
+                playerSelect.innerHTML = '<option value="">-- Sélectionne un joueur --</option>';
+                
+                data.roster.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.name;
+                    const volBadge = player.volatility ? ` 📊${player.volatility}` : '';
+                    option.textContent = `${player.name} - ${player.position}${volBadge}`;
+                    playerSelect.appendChild(option);
+                });
+
+                document.getElementById('teamInfo').style.display = 'block';
+
+            } catch (error) {
+                displayError(`Erreur lors du chargement: ${error.message}`);
+            } finally {
+                document.getElementById('teamLoading').style.display = 'none';
+            }
+        }
+
+        async function viewPlayerStats() {
+            const player = document.getElementById('player').value;
+
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('statsViewer').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/player-stats/${encodeURIComponent(player)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayPlayerStats(data);
+
+            } catch (error) {
+                displayError(`Erreur stats: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayPlayerStats(data) {
+            const statsDiv = document.getElementById('statsViewer');
+            
+            let html = `
+                <h2 style="color: #667eea; margin-bottom: 20px;">📊 Stats Complètes - ${data.player}</h2>
+                
+                <div class="info-box">
+                    <h3>Saison ${data.season}</h3>
+                    <p><strong>Matchs:</strong> ${data.total_games}</p>
+                    <p><strong>Période:</strong> ${data.date_range.first_game} au ${data.date_range.last_game}</p>
+                    <p><strong>Volatilité:</strong> ${data.volatility}</p>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Moyennes</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Saison</div>
+                        <div class="stat-value">${data.averages.season} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">10 derniers</div>
+                        <div class="stat-value">${data.averages.last_10} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">5 derniers</div>
+                        <div class="stat-value">${data.averages.last_5} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Domicile</div>
+                        <div class="stat-value">${data.averages.home} pts</div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Tous les matchs (${data.all_games.length})</h3>
+                <div style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            `;
+
+            data.all_games.forEach(game => {
+                const bgColor = game.points >= data.averages.season ? '#d1fae5' : '#fee2e2';
+                html += `
+                    <div style="background: ${bgColor}; padding: 10px; margin-bottom: 8px; border-radius: 5px; display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>${game.date}</strong> - ${game.matchup}
+                            <br><small>${game.location}</small>
+                        </div>
+                        <div style="font-size: 1.5em; font-weight: 700; color: #667eea;">
+                            ${game.points} pts
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            statsDiv.innerHTML = html;
+            statsDiv.style.display = 'block';
+        }
+
+        async function analyzePlayer() {
+            const player = document.getElementById('player').value;
+            const line = document.getElementById('line').value;
+
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
+            }
+
+            if (!currentTeamData) {
+                alert('Erreur: données équipe manquantes');
+                return;
+            }
+
+            const nextGame = currentTeamData.next_game;
+            const opponent = nextGame.opponent;
+            const isHome = nextGame.is_home;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player: player,
+                        opponent: opponent,
+                        is_home: isHome,
+                        line: line ? parseFloat(line) : null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const resultDiv = document.getElementById('result');
             
             let html = `
                 <div class="prediction-box">
-                    <h2>${statEmoji} ${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
-                    <div class="prediction-value">${data.prediction} ${statLabel}</div>
+                    <h2>${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} pts</div>
                     <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
                 </div>
             `;
-
-            // R² BOX - BIEN VISIBLE
-            if (data.trend_analysis) {
-                const r2 = data.trend_analysis.r_squared;
-                const r2Class = r2 >= 0.7 ? '' : r2 >= 0.5 ? 'medium' : 'low';
-                const r2Label = r2 >= 0.7 ? 'Excellent' : r2 >= 0.5 ? 'Bon' : 'Faible';
-                
-                html += `
-                    <div class="r2-box ${r2Class}">
-                        <div style="font-size: 1.2em; margin-bottom: 10px;">📊 Fiabilité Tendance (R²)</div>
-                        <div class="r2-value">${r2}</div>
-                        <div style="margin-top: 10px; font-size: 1.1em;">${r2Label}</div>
-                        <p style="margin-top: 10px; font-size: 0.9em;">
-                            ${data.trend_analysis.interpretation}
-                        </p>
-                        <p style="font-size: 0.85em; margin-top: 5px;">p-value: ${data.trend_analysis.p_value}</p>
-                    </div>
-                `;
-            }
 
             // SCORE DE CONFIANCE
             if (data.confidence_score) {
@@ -617,68 +613,6 @@
                         <div class="confidence-score-value">${data.confidence_score.score}/100</div>
                         <div style="margin-top: 10px; font-size: 1.1em;">${data.confidence_score.level}</div>
                         <p style="margin-top: 15px; font-size: 0.9em;">${data.confidence_score.recommendation}</p>
-                    </div>
-                `;
-            }
-
-            // ANALYSE DÉFENSE
-            if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
-                const def = data.matchup_analysis.defense_impact;
-                
-                let defColor = '#10b981';
-                if (def.category === 'ELITE' || def.category === 'EXCELLENTE') {
-                    defColor = '#ef4444';
-                } else if (def.category === 'BONNE') {
-                    defColor = '#f59e0b';
-                } else if (def.category === 'MOYENNE') {
-                    defColor = '#6b7280';
-                }
-                
-                html += `
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; border-left: 5px solid ${defColor};">
-                        <h3 style="color: #667eea; margin-bottom: 15px;">${def.emoji} Analyse Défense Adverse</h3>
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div>
-                                <p><strong>Équipe:</strong> ${def.opponent}</p>
-                                <p><strong>Rating défensif:</strong> ${def.rating}</p>
-                            </div>
-                            <div>
-                                <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
-                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} ${statLabel}</span></p>
-                            </div>
-                        </div>
-                        
-                        <p style="background: white; padding: 12px; border-radius: 8px; color: #374151;">
-                            ${def.explanation}
-                        </p>
-                    </div>
-                `;
-            }
-            
-            // RÉSUMÉ AJUSTEMENTS
-            if (data.matchup_analysis) {
-                html += `
-                    <div style="background: #e0e7ff; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                        <h4 style="color: #667eea; margin-bottom: 10px;">📋 Résumé Ajustements</h4>
-                `;
-                
-                if (data.matchup_analysis.defense_impact && data.matchup_analysis.defense_impact.explanation) {
-                    html += `<p>${data.matchup_analysis.defense_impact.explanation}</p>`;
-                }
-                if (data.matchup_analysis.home_away_impact && data.matchup_analysis.home_away_impact.explanation) {
-                    html += `<p>${data.matchup_analysis.home_away_impact.explanation}</p>`;
-                }
-                if (data.matchup_analysis.historical_impact && data.matchup_analysis.historical_impact.explanation) {
-                    html += `<p>${data.matchup_analysis.historical_impact.explanation}</p>`;
-                }
-                
-                html += `
-                        <p style="margin-top: 10px; font-weight: 700; border-top: 2px solid #667eea; padding-top: 10px;">
-                            Total ajustements: <span style="color: ${data.matchup_analysis.total_adjustments < 0 ? '#ef4444' : '#10b981'};">
-                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} ${statLabel}
-                            </span>
-                        </p>
                     </div>
                 `;
             }
@@ -710,7 +644,7 @@
                             <strong>Outliers identifiés:</strong>
                             ${data.outlier_analysis.outliers.map(o => `
                                 <div class="outlier-item ${o.severity === 'HIGH' ? 'high' : ''}">
-                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} ${statLabel}</strong>
+                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} pts</strong>
                                     <br><small>${o.reason}</small>
                                     <br><small>Détecté par: ${Object.entries(o.methods_detected).filter(([k,v]) => v).map(([k]) => k).join(', ')}</small>
                                 </div>
@@ -729,7 +663,7 @@
                         <div class="ab-test-grid">
                             <div class="ab-version ${data.ab_test.winner === 'FULL' ? 'winner' : ''}">
                                 <h4>Version A (AVEC outliers)</h4>
-                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} ${statLabel}</p>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} pts</p>
                                 <p><strong>Écart-type:</strong> ${data.ab_test.version_a_full.std_dev}</p>
                                 <p><strong>R²:</strong> ${data.ab_test.version_a_full.r_squared}</p>
                                 <p><strong>Matchs:</strong> ${data.ab_test.version_a_full.games_used}</p>
@@ -737,7 +671,7 @@
                             
                             <div class="ab-version ${data.ab_test.winner === 'CLEAN' ? 'winner' : ''}">
                                 <h4>Version B (SANS outliers) ${data.ab_test.winner === 'CLEAN' ? '✅' : ''}</h4>
-                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} ${statLabel}</p>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} pts</p>
                                 <p><strong>Écart-type:</strong> ${data.ab_test.version_b_clean.std_dev}</p>
                                 <p><strong>R²:</strong> ${data.ab_test.version_b_clean.r_squared}</p>
                                 <p><strong>Matchs:</strong> ${data.ab_test.version_b_clean.games_used}</p>
@@ -763,19 +697,27 @@
                     <div class="stat-item">
                         <div class="stat-label">Écart-type</div>
                         <div class="stat-value">${data.season_stats.std_dev}</div>
-                        <small>${data.season_stats.consistency_level || 'N/A'}</small>
+                        <small>${data.season_stats.consistency_level}</small>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Matchs analysés</div>
-                        <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
+                        <div class="stat-value">${data.season_stats.games_used}/${data.season_stats.games_played}</div>
                     </div>
+            `;
+
+            // TENDANCE + R²
+            if (data.trend_analysis) {
+                html += `
                     <div class="stat-item">
-                        <div class="stat-label">Tendance</div>
+                        <div class="stat-label">Tendance (R²=${data.trend_analysis.r_squared})</div>
                         <div class="stat-value">${data.trend_analysis.slope > 0 ? '+' : ''}${data.trend_analysis.slope}</div>
                         <small>${data.trend_analysis.interpretation}</small>
+                        <small>p-value: ${data.trend_analysis.p_value}</small>
                     </div>
-                </div>
-            `;
+                `;
+            }
+
+            html += `</div>`;
 
             // SPLITS
             if (data.splits) {
@@ -785,7 +727,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
-                            <div class="stat-value">${data.splits.home.avg} ${statLabel}</div>
+                            <div class="stat-value">${data.splits.home.avg} pts</div>
                         </div>
                     `;
                 }
@@ -794,7 +736,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
-                            <div class="stat-value">${data.splits.away.avg} ${statLabel}</div>
+                            <div class="stat-value">${data.splits.away.avg} pts</div>
                         </div>
                     `;
                 }
@@ -803,7 +745,7 @@
                     html += `
                         <div class="stat-item">
                             <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
-                            <div class="stat-value">${data.splits.vs_opponent.avg} ${statLabel}</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} pts</div>
                         </div>
                     `;
                 }
@@ -816,9 +758,6 @@
                 const rec = data.line_analysis.recommendation;
                 const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
                 
-                const betConf = data.line_analysis.bet_confidence || 
-                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
-                
                 html += `
                     <div class="recommendation ${recClass}">
                         ${rec} ${data.line_analysis.bookmaker_line}
@@ -826,7 +765,7 @@
                         <span style="font-size: 0.8em;">
                             Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
                             Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
-                            Confiance: ${betConf}
+                            Confiance: ${data.line_analysis.bet_confidence}
                         </span>
                     </div>
                 `;
@@ -843,7 +782,7 @@
                     <h3>❌ Erreur</h3>
                     <p>${message}</p>
                     <p style="margin-top: 15px;">
-                        Le service peut prendre 30-60 secondes à démarrer.
+                        Le service peut prendre 30-60 secondes à démarrer sur le plan gratuit.
                         Réessaye dans quelques instants.
                     </p>
                 </div>
