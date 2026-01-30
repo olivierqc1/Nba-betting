@@ -313,7 +313,7 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Betting Analyzer</h1>
-            <p>v3.0 - Outliers, R², Test A/B</p>
+            <p>v3.0 - Outliers, R², Test A/B, Défense</p>
             <div class="badge">✨ COMPLET</div>
         </div>
 
@@ -393,7 +393,7 @@
 
         <div id="loading" class="card loading" style="display: none;">
             <div class="spinner"></div>
-            <p>Analyse v3.0 en cours (outliers, R², test A/B)...</p>
+            <p>Analyse v3.0 en cours (outliers, R², défense)...</p>
         </div>
 
         <div id="result" class="card result">
@@ -617,6 +617,68 @@
                 `;
             }
 
+            // ANALYSE DÉFENSE (NOUVEAU)
+            if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
+                const def = data.matchup_analysis.defense_impact;
+                
+                let defColor = '#10b981';
+                if (def.category === 'ELITE' || def.category === 'EXCELLENTE') {
+                    defColor = '#ef4444';
+                } else if (def.category === 'BONNE') {
+                    defColor = '#f59e0b';
+                } else if (def.category === 'MOYENNE') {
+                    defColor = '#6b7280';
+                }
+                
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; border-left: 5px solid ${defColor};">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">${def.emoji} Analyse Défense Adverse</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <p><strong>Équipe:</strong> ${def.opponent}</p>
+                                <p><strong>Rating défensif:</strong> ${def.rating}</p>
+                            </div>
+                            <div>
+                                <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
+                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} pts</span></p>
+                            </div>
+                        </div>
+                        
+                        <p style="background: white; padding: 12px; border-radius: 8px; color: #374151;">
+                            ${def.explanation}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // RÉSUMÉ AJUSTEMENTS (NOUVEAU)
+            if (data.matchup_analysis) {
+                html += `
+                    <div style="background: #e0e7ff; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📋 Résumé Ajustements</h4>
+                `;
+                
+                if (data.matchup_analysis.defense_impact && data.matchup_analysis.defense_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.defense_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.home_away_impact && data.matchup_analysis.home_away_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.home_away_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.historical_impact && data.matchup_analysis.historical_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.historical_impact.explanation}</p>`;
+                }
+                
+                html += `
+                        <p style="margin-top: 10px; font-weight: 700; border-top: 2px solid #667eea; padding-top: 10px;">
+                            Total ajustements: <span style="color: ${data.matchup_analysis.total_adjustments < 0 ? '#ef4444' : '#10b981'};">
+                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} pts
+                            </span>
+                        </p>
+                    </div>
+                `;
+            }
+
             // ALERTES MINUTES
             if (data.minutes_stats && data.minutes_stats.alert) {
                 const alertClass = data.minutes_stats.alert_level === 'CRITICAL' ? 'critical' : 
@@ -697,11 +759,11 @@
                     <div class="stat-item">
                         <div class="stat-label">Écart-type</div>
                         <div class="stat-value">${data.season_stats.std_dev}</div>
-                        <small>${data.season_stats.consistency_level}</small>
+                        <small>${data.season_stats.consistency_level || 'N/A'}</small>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Matchs analysés</div>
-                        <div class="stat-value">${data.season_stats.games_used}/${data.season_stats.games_played}</div>
+                        <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
                     </div>
             `;
 
@@ -758,6 +820,10 @@
                 const rec = data.line_analysis.recommendation;
                 const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
                 
+                // Utilise le score de confiance général si bet_confidence est vide
+                const betConf = data.line_analysis.bet_confidence || 
+                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
+                
                 html += `
                     <div class="recommendation ${recClass}">
                         ${rec} ${data.line_analysis.bookmaker_line}
@@ -765,7 +831,7 @@
                         <span style="font-size: 0.8em;">
                             Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
                             Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
-                            Confiance: ${data.line_analysis.bet_confidence}
+                            Confiance: ${betConf}
                         </span>
                     </div>
                 `;
