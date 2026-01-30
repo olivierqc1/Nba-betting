@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Betting Analyzer v3.0</title>
+    <title>NBA Betting Analyzer 🏀 v3.0</title>
     <style>
         * {
             margin: 0;
@@ -26,23 +26,31 @@
         .header {
             background: white;
             border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             text-align: center;
         }
 
-        h1 {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .header h1 {
             font-size: 2.5em;
+            color: #667eea;
             margin-bottom: 10px;
         }
 
-        .subtitle {
+        .header p {
             color: #666;
             font-size: 1.1em;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
         }
 
         .card {
@@ -53,71 +61,120 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
-        .form-group {
-            margin-bottom: 25px;
+        /* ONGLETS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
         }
 
-        label {
-            display: block;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 1.05em;
-        }
-
-        select, input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1em;
-            transition: all 0.3s;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
-        }
-
-        .btn {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
             border: none;
-            border-radius: 12px;
-            font-size: 1.2em;
-            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            font-size: 1em;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
         }
 
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102,126,234,0.4);
         }
 
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #3b82f6;
+            margin-bottom: 10px;
         }
 
         .loading {
             text-align: center;
-            padding: 60px;
+            padding: 40px;
             color: #667eea;
+            font-size: 1.2em;
         }
 
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 20px auto;
         }
 
         @keyframes spin {
@@ -125,94 +182,176 @@
             100% { transform: rotate(360deg); }
         }
 
-        .results {
+        .result {
             display: none;
+        }
+
+        .result.show {
+            display: block;
         }
 
         .prediction-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 25px;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
             text-align: center;
         }
 
         .prediction-value {
-            font-size: 3.5em;
+            font-size: 3em;
             font-weight: 800;
-            margin: 15px 0;
+            margin: 10px 0;
         }
 
-        .recommendation {
-            background: #f8fafc;
-            padding: 25px;
-            border-radius: 16px;
-            margin-bottom: 20px;
+        /* R² BOX - BIEN VISIBLE */
+        .r2-box {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
         }
 
-        .recommendation.over {
-            border-left: 6px solid #10b981;
+        .r2-box.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         }
 
-        .recommendation.under {
-            border-left: 6px solid #ef4444;
+        .r2-box.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
 
-        .recommendation.skip {
-            border-left: 6px solid #f59e0b;
+        .r2-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
         }
 
-        .rec-title {
-            font-size: 1.5em;
-            font-weight: 700;
-            margin-bottom: 15px;
-        }
-
-        .rec-title.over { color: #10b981; }
-        .rec-title.under { color: #ef4444; }
-        .rec-title.skip { color: #f59e0b; }
-
-        .stats-grid {
+        .stat-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         .stat-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
         }
 
         .stat-label {
+            font-size: 0.9em;
             color: #666;
+            margin-bottom: 5px;
         }
 
         .stat-value {
+            font-size: 1.5em;
             font-weight: 700;
-            color: #333;
+            color: #667eea;
         }
 
-        .info-section {
-            background: #f8fafc;
+        .recommendation {
+            background: #10b981;
+            color: white;
             padding: 20px;
-            border-radius: 12px;
-            margin-top: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 700;
         }
 
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
+        .recommendation.under {
+            background: #ef4444;
         }
 
-        .info-row:last-child {
-            border-bottom: none;
+        .recommendation.skip {
+            background: #f59e0b;
+        }
+
+        .alert-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .alert-box.critical {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .alert-box.info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .outlier-item {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        .outlier-item.high {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .ab-test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .ab-version {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .ab-version.winner {
+            border-color: #10b981;
+            background: #d1fae5;
+        }
+
+        .confidence-score {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .confidence-score.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .confidence-score.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .confidence-score-value {
+            font-size: 3.5em;
+            font-weight: 800;
+        }
+
+        .splits {
+            margin-top: 20px;
+        }
+
+        .splits h3 {
+            color: #667eea;
+            margin-bottom: 15px;
         }
 
         .error {
@@ -220,58 +359,43 @@
             border: 2px solid #fca5a5;
             color: #991b1b;
             padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .team-btn {
-            padding: 15px;
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
             border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-            color: #333;
+            margin-top: 20px;
         }
 
-        .team-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .team-btn.selected {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+        @media (max-width: 600px) {
+            .stat-grid, .ab-test-grid {
+                grid-template-columns: 1fr;
+            }
+            .tabs {
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏀 NBA Betting Analyzer v3.0</h1>
-            <p class="subtitle">Prédictions basées sur les vraies données NBA 2024-25</p>
+            <h1>🏀 NBA Betting Analyzer</h1>
+            <p>v3.0 - Outliers, R², Test A/B, Défense</p>
+            <div class="badge">✨ COMPLET</div>
         </div>
 
+        <!-- ONGLETS -->
         <div class="card">
-            <form id="analyzeForm">
-                <!-- STEP 1: Équipe -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('points')">🏀 Points</button>
+                <button class="tab" onclick="switchTab('assists')">🎯 Assists</button>
+                <button class="tab" onclick="switchTab('rebounds')">💪 Rebounds</button>
+            </div>
+
+            <!-- ONGLET POINTS -->
+            <div id="tab-points" class="tab-content active">
+                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
+                
                 <div class="form-group">
-                    <label>1️⃣ Choisis l'équipe</label>
-                    <select id="teamSelect" required>
+                    <label>Équipe à analyser</label>
+                    <select id="team-points" onchange="loadTeamInfo('points')">
                         <option value="">-- Sélectionne une équipe --</option>
                         <option value="ATL">Atlanta Hawks</option>
                         <option value="BOS">Boston Celtics</option>
@@ -306,19 +430,43 @@
                     </select>
                 </div>
 
-                <!-- STEP 2: Joueur (caché jusqu'à sélection équipe) -->
-                <div id="playerGroup" class="form-group hidden">
-                    <label>2️⃣ Choisis le joueur</label>
-                    <select id="playerSelect" required>
-                        <option value="">-- Chargement du roster... --</option>
-                    </select>
+                <div id="teamLoading-points" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Chargement roster...</p>
                 </div>
 
-                <!-- STEP 3: Adversaire -->
-                <div id="opponentGroup" class="form-group hidden">
-                    <label>3️⃣ Adversaire</label>
-                    <select id="opponentSelect" required>
-                        <option value="">-- Sélectionne l'adversaire --</option>
+                <div id="teamInfo-points" style="display: none;">
+                    <h2 style="margin: 20px 0; color: #667eea;">2️⃣ Prochain match</h2>
+                    <div id="nextGameInfo-points" class="info-box"></div>
+
+                    <div class="form-group">
+                        <label>Joueur à analyser</label>
+                        <select id="player-points">
+                            <option value="">-- Sélectionne un joueur --</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" onclick="viewPlayerStats('points')" style="background: #3b82f6; margin-bottom: 15px;">
+                        📊 Voir Stats Complètes
+                    </button>
+
+                    <div class="form-group">
+                        <label>Ligne Bookmaker (points)</label>
+                        <input type="number" id="line-points" placeholder="Ex: 24.5" step="0.5">
+                    </div>
+
+                    <button class="btn" onclick="analyzePlayer('points')">🔍 Analyser Points</button>
+                </div>
+            </div>
+
+            <!-- ONGLET ASSISTS -->
+            <div id="tab-assists" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
+                
+                <div class="form-group">
+                    <label>Équipe à analyser</label>
+                    <select id="team-assists" onchange="loadTeamInfo('assists')">
+                        <option value="">-- Sélectionne une équipe --</option>
                         <option value="ATL">Atlanta Hawks</option>
                         <option value="BOS">Boston Celtics</option>
                         <option value="BKN">Brooklyn Nets</option>
@@ -352,186 +500,356 @@
                     </select>
                 </div>
 
-                <!-- STEP 4: Domicile/Extérieur -->
-                <div id="locationGroup" class="form-group hidden">
-                    <label>4️⃣ Localisation</label>
-                    <select id="isHomeSelect" required>
-                        <option value="true">🏠 Domicile</option>
-                        <option value="false">✈️ Extérieur</option>
+                <div id="teamLoading-assists" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Chargement roster...</p>
+                </div>
+
+                <div id="teamInfo-assists" style="display: none;">
+                    <h2 style="margin: 20px 0; color: #667eea;">2️⃣ Prochain match</h2>
+                    <div id="nextGameInfo-assists" class="info-box"></div>
+
+                    <div class="form-group">
+                        <label>Joueur à analyser</label>
+                        <select id="player-assists">
+                            <option value="">-- Sélectionne un joueur --</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" onclick="viewPlayerStats('assists')" style="background: #3b82f6; margin-bottom: 15px;">
+                        📊 Voir Stats Complètes
+                    </button>
+
+                    <div class="form-group">
+                        <label>Ligne Bookmaker (assists)</label>
+                        <input type="number" id="line-assists" placeholder="Ex: 7.5" step="0.5">
+                    </div>
+
+                    <button class="btn" onclick="analyzePlayer('assists')">🔍 Analyser Assists</button>
+                </div>
+            </div>
+
+            <!-- ONGLET REBOUNDS -->
+            <div id="tab-rebounds" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
+                
+                <div class="form-group">
+                    <label>Équipe à analyser</label>
+                    <select id="team-rebounds" onchange="loadTeamInfo('rebounds')">
+                        <option value="">-- Sélectionne une équipe --</option>
+                        <option value="ATL">Atlanta Hawks</option>
+                        <option value="BOS">Boston Celtics</option>
+                        <option value="BKN">Brooklyn Nets</option>
+                        <option value="CHA">Charlotte Hornets</option>
+                        <option value="CHI">Chicago Bulls</option>
+                        <option value="CLE">Cleveland Cavaliers</option>
+                        <option value="DAL">Dallas Mavericks</option>
+                        <option value="DEN">Denver Nuggets</option>
+                        <option value="DET">Detroit Pistons</option>
+                        <option value="GSW">Golden State Warriors</option>
+                        <option value="HOU">Houston Rockets</option>
+                        <option value="IND">Indiana Pacers</option>
+                        <option value="LAC">LA Clippers</option>
+                        <option value="LAL">Los Angeles Lakers</option>
+                        <option value="MEM">Memphis Grizzlies</option>
+                        <option value="MIA">Miami Heat</option>
+                        <option value="MIL">Milwaukee Bucks</option>
+                        <option value="MIN">Minnesota Timberwolves</option>
+                        <option value="NOP">New Orleans Pelicans</option>
+                        <option value="NYK">New York Knicks</option>
+                        <option value="OKC">Oklahoma City Thunder</option>
+                        <option value="ORL">Orlando Magic</option>
+                        <option value="PHI">Philadelphia 76ers</option>
+                        <option value="PHX">Phoenix Suns</option>
+                        <option value="POR">Portland Trail Blazers</option>
+                        <option value="SAC">Sacramento Kings</option>
+                        <option value="SAS">San Antonio Spurs</option>
+                        <option value="TOR">Toronto Raptors</option>
+                        <option value="UTA">Utah Jazz</option>
+                        <option value="WAS">Washington Wizards</option>
                     </select>
                 </div>
 
-                <!-- STEP 5: Ligne de pari -->
-                <div id="lineGroup" class="form-group hidden">
-                    <label>5️⃣ Ligne de pari (points)</label>
-                    <input type="number" id="lineInput" step="0.5" placeholder="Ex: 25.5" required>
-                </div>
-
-                <button type="submit" class="btn" id="submitBtn">
-                    🔮 Analyser
-                </button>
-            </form>
-        </div>
-
-        <!-- Loading -->
-        <div id="loadingDiv" class="card loading hidden">
-            <div class="spinner"></div>
-            <h3>Analyse en cours...</h3>
-            <p>Récupération des données NBA et calcul des prédictions</p>
-        </div>
-
-        <!-- Results -->
-        <div id="resultsDiv" class="card results"></div>
-    </div>
-
-    <script>
-        const API_URL = 'https://nba-betting-1.onrender.com/api';
-
-        const teamSelect = document.getElementById('teamSelect');
-        const playerSelect = document.getElementById('playerSelect');
-        const opponentSelect = document.getElementById('opponentSelect');
-        const isHomeSelect = document.getElementById('isHomeSelect');
-        const lineInput = document.getElementById('lineInput');
-        const form = document.getElementById('analyzeForm');
-        const loadingDiv = document.getElementById('loadingDiv');
-        const resultsDiv = document.getElementById('resultsDiv');
-
-        const playerGroup = document.getElementById('playerGroup');
-        const opponentGroup = document.getElementById('opponentGroup');
-        const locationGroup = document.getElementById('locationGroup');
-        const lineGroup = document.getElementById('lineGroup');
-
-        // Quand équipe sélectionnée, charger le roster
-        teamSelect.addEventListener('change', async (e) => {
-            const team = e.target.value;
-            if (!team) return;
-
-            playerSelect.innerHTML = '<option value="">-- Chargement... --</option>';
-            playerGroup.classList.remove('hidden');
-
-            try {
-                const response = await fetch(`${API_URL}/team-roster/${team}`);
-                const data = await response.json();
-
-                if (data.status === 'SUCCESS') {
-                    playerSelect.innerHTML = '<option value="">-- Choisis un joueur --</option>';
-                    data.roster.forEach(player => {
-                        const option = document.createElement('option');
-                        option.value = player.name;
-                        option.textContent = `${player.name} (${player.position})`;
-                        playerSelect.appendChild(option);
-                    });
-                } else {
-                    playerSelect.innerHTML = '<option value="">❌ Erreur chargement</option>';
-                }
-            } catch (error) {
-                playerSelect.innerHTML = '<option value="">❌ Erreur réseau</option>';
-                console.error('Erreur:', error);
-            }
-        });
-
-        // Quand joueur sélectionné, afficher les autres champs
-        playerSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                opponentGroup.classList.remove('hidden');
-                locationGroup.classList.remove('hidden');
-                lineGroup.classList.remove('hidden');
-            }
-        });
-
-        // Soumettre le formulaire
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const player = playerSelect.value;
-            const opponent = opponentSelect.value;
-            const isHome = isHomeSelect.value === 'true';
-            const line = parseFloat(lineInput.value);
-
-            if (!player || !opponent || !line) {
-                alert('Remplis tous les champs!');
-                return;
-            }
-
-            // Afficher loading
-            loadingDiv.classList.remove('hidden');
-            resultsDiv.style.display = 'none';
-
-            try {
-                const response = await fetch(`${API_URL}/analyze`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ player, opponent, is_home: isHome, line })
-                });
-
-                const data = await response.json();
-
-                if (data.status === 'SUCCESS') {
-                    displayResults(data);
-                } else {
-                    displayError(data.error || 'Erreur inconnue');
-                }
-            } catch (error) {
-                displayError('Impossible de se connecter au serveur');
-                console.error('Erreur:', error);
-            } finally {
-                loadingDiv.classList.add('hidden');
-            }
-        });
-
-        function displayResults(data) {
-            const rec = data.line_analysis.recommendation;
-            const recClass = rec.toLowerCase();
-
-            resultsDiv.innerHTML = `
+                <div id="teamLoading-rebounds" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Chargement roster...</p>
+               
+        function displayResults(data, statType) {
+            const resultDiv = document.getElementById('result');
+            
+            const statLabel = statType === 'points' ? 'pts' : statType === 'assists' ? 'ast' : 'reb';
+            const statEmoji = statType === 'points' ? '🏀' : statType === 'assists' ? '🎯' : '💪';
+            
+            let html = `
                 <div class="prediction-box">
-                    <h2>${data.player}</h2>
-                    <p>${data.is_home ? 'vs' : '@'} ${data.opponent}</p>
-                    <div class="prediction-value">${data.prediction} pts</div>
-                    <p>Intervalle de confiance 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
+                    <h2>${statEmoji} ${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} ${statLabel}</div>
+                    <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
                 </div>
+            `;
 
-                <div class="recommendation ${recClass}">
-                    <div class="rec-title ${recClass}">
-                        ${rec === 'OVER' ? '📈' : rec === 'UNDER' ? '📉' : '⏸️'} 
-                        Recommandation: ${rec} ${data.line_analysis.bookmaker_line}
+            // R² BOX - BIEN VISIBLE
+            if (data.trend_analysis) {
+                const r2 = data.trend_analysis.r_squared;
+                const r2Class = r2 >= 0.7 ? '' : r2 >= 0.5 ? 'medium' : 'low';
+                const r2Label = r2 >= 0.7 ? 'Excellent' : r2 >= 0.5 ? 'Bon' : 'Faible';
+                
+                html += `
+                    <div class="r2-box ${r2Class}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">📊 Fiabilité Tendance (R²)</div>
+                        <div class="r2-value">${r2}</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${r2Label}</div>
+                        <p style="margin-top: 10px; font-size: 0.9em;">
+                            ${data.trend_analysis.interpretation}
+                        </p>
+                        <p style="font-size: 0.85em; margin-top: 5px;">p-value: ${data.trend_analysis.p_value}</p>
                     </div>
-                    
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Probabilité Over:</span>
-                            <span class="stat-value">${(data.line_analysis.over_probability * 100).toFixed(1)}%</span>
+                `;
+            }
+
+            // SCORE DE CONFIANCE
+            if (data.confidence_score) {
+                const confClass = data.confidence_score.level === 'HIGH' ? '' : 
+                                 data.confidence_score.level === 'MEDIUM' ? 'medium' : 'low';
+                html += `
+                    <div class="confidence-score ${confClass}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Score de Confiance</div>
+                        <div class="confidence-score-value">${data.confidence_score.score}/100</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${data.confidence_score.level}</div>
+                        <p style="margin-top: 15px; font-size: 0.9em;">${data.confidence_score.recommendation}</p>
+                    </div>
+                `;
+            }
+
+            // ANALYSE DÉFENSE
+            if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
+                const def = data.matchup_analysis.defense_impact;
+                
+                let defColor = '#10b981';
+                if (def.category === 'ELITE' || def.category === 'EXCELLENTE') {
+                    defColor = '#ef4444';
+                } else if (def.category === 'BONNE') {
+                    defColor = '#f59e0b';
+                } else if (def.category === 'MOYENNE') {
+                    defColor = '#6b7280';
+                }
+                
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; border-left: 5px solid ${defColor};">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">${def.emoji} Analyse Défense Adverse</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <p><strong>Équipe:</strong> ${def.opponent}</p>
+                                <p><strong>Rating défensif:</strong> ${def.rating}</p>
+                            </div>
+                            <div>
+                                <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
+                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} ${statLabel}</span></p>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Probabilité Under:</span>
-                            <span class="stat-value">${(data.line_analysis.under_probability * 100).toFixed(1)}%</span>
+                        
+                        <p style="background: white; padding: 12px; border-radius: 8px; color: #374151;">
+                            ${def.explanation}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // RÉSUMÉ AJUSTEMENTS
+            if (data.matchup_analysis) {
+                html += `
+                    <div style="background: #e0e7ff; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📋 Résumé Ajustements</h4>
+                `;
+                
+                if (data.matchup_analysis.defense_impact && data.matchup_analysis.defense_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.defense_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.home_away_impact && data.matchup_analysis.home_away_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.home_away_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.historical_impact && data.matchup_analysis.historical_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.historical_impact.explanation}</p>`;
+                }
+                
+                html += `
+                        <p style="margin-top: 10px; font-weight: 700; border-top: 2px solid #667eea; padding-top: 10px;">
+                            Total ajustements: <span style="color: ${data.matchup_analysis.total_adjustments < 0 ? '#ef4444' : '#10b981'};">
+                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} ${statLabel}
+                            </span>
+                        </p>
+                    </div>
+                `;
+            }
+
+            // ALERTES MINUTES
+            if (data.minutes_stats && data.minutes_stats.alert) {
+                const alertClass = data.minutes_stats.alert_level === 'CRITICAL' ? 'critical' : 
+                                  data.minutes_stats.alert_level === 'WARNING' ? '' : 'info';
+                html += `
+                    <div class="alert-box ${alertClass}">
+                        <strong>Temps de Jeu</strong>
+                        <p>${data.minutes_stats.alert}</p>
+                        <p style="margin-top: 5px;">Moyenne 10 derniers: <strong>${data.minutes_stats.avg_last_10} min</strong></p>
+                    </div>
+                `;
+            }
+
+            // OUTLIERS
+            if (data.outlier_analysis && data.outlier_analysis.outliers_detected > 0) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🔍 Analyse Outliers</h3>
+                        <p><strong>Méthode:</strong> ${data.outlier_analysis.method}</p>
+                        <p><strong>Outliers détectés:</strong> ${data.outlier_analysis.outliers_detected} (${data.outlier_analysis.outliers_pct}%)</p>
+                        <p><strong>Données utilisées:</strong> ${data.outlier_analysis.data_used === 'CLEANED' ? 'Nettoyées (sans outliers)' : 'Complètes'}</p>
+                        <p style="margin-top: 10px; color: #666;">${data.outlier_analysis.recommendation}</p>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Outliers identifiés:</strong>
+                            ${data.outlier_analysis.outliers.map(o => `
+                                <div class="outlier-item ${o.severity === 'HIGH' ? 'high' : ''}">
+                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} ${statLabel}</strong>
+                                    <br><small>${o.reason}</small>
+                                    <br><small>Détecté par: ${Object.entries(o.methods_detected).filter(([k,v]) => v).map(([k]) => k).join(', ')}</small>
+                                </div>
+                            `).join('')}
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Edge:</span>
-                            <span class="stat-value">${(data.line_analysis.edge * 100).toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+
+            // TEST A/B
+            if (data.ab_test) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🧪 Test A/B (Avec vs Sans Outliers)</h3>
+                        
+                        <div class="ab-test-grid">
+                            <div class="ab-version ${data.ab_test.winner === 'FULL' ? 'winner' : ''}">
+                                <h4>Version A (AVEC outliers)</h4>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} ${statLabel}</p>
+                                <p><strong>Écart-type:</strong> ${data.ab_test.version_a_full.std_dev}</p>
+                                <p><strong>R²:</strong> ${data.ab_test.version_a_full.r_squared}</p>
+                                <p><strong>Matchs:</strong> ${data.ab_test.version_a_full.games_used}</p>
+                            </div>
+                            
+                            <div class="ab-version ${data.ab_test.winner === 'CLEAN' ? 'winner' : ''}">
+                                <h4>Version B (SANS outliers) ${data.ab_test.winner === 'CLEAN' ? '✅' : ''}</h4>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} ${statLabel}</p>
+                                <p><strong>Écart-type:</strong> ${data.ab_test.version_b_clean.std_dev}</p>
+                                <p><strong>R²:</strong> ${data.ab_test.version_b_clean.r_squared}</p>
+                                <p><strong>Matchs:</strong> ${data.ab_test.version_b_clean.games_used}</p>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Confiance:</span>
-                            <span class="stat-value">${data.line_analysis.bet_confidence}</span>
+                        
+                        <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 10px;">
+                            <p><strong>Amélioration std:</strong> ${data.ab_test.comparison.std_improvement}%</p>
+                            <p><strong>Amélioration R²:</strong> ${data.ab_test.comparison.r2_improvement}</p>
+                            <p style="margin-top: 10px; color: #059669;"><strong>Décision:</strong> ${data.ab_test.reason}</p>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Kelly Criterion:</span>
-                            <span class="stat-value">${(data.line_analysis.kelly_criterion * 100).toFixed(1)}%</span>
-                        </div>
+                    </div>
+                `;
+            }
+
+            // STATS SAISON
+            html += `
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Moyenne pondérée</div>
+                        <div class="stat-value">${data.season_stats.weighted_avg}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Écart-type</div>
+                        <div class="stat-value">${data.season_stats.std_dev}</div>
+                        <small>${data.season_stats.consistency_level || 'N/A'}</small>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Matchs analysés</div>
+                        <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Tendance</div>
+                        <div class="stat-value">${data.trend_analysis.slope > 0 ? '+' : ''}${data.trend_analysis.slope}</div>
+                        <small>${data.trend_analysis.interpretation}</small>
                     </div>
                 </div>
+            `;
 
-                <div class="info-section">
-                    <h3 style="margin-bottom: 15px;">📊 Statistiques de saison</h3>
-                    <div class="info-row">
-                        <span>Moyenne pondérée:</span>
-                        <strong>${data.season_stats.weighted_avg} pts</strong>
+            // SPLITS
+            if (data.splits) {
+                html += '<div class="splits"><h3>📊 Splits</h3><div class="stat-grid">';
+                
+                if (data.splits.home) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
+                            <div class="stat-value">${data.splits.home.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.away) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
+                            <div class="stat-value">${data.splits.away.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.vs_opponent) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} ${statLabel}</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div></div>';
+            }
+
+            // RECOMMANDATION
+            if (data.line_analysis) {
+                const rec = data.line_analysis.recommendation;
+                const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
+                
+                const betConf = data.line_analysis.bet_confidence || 
+                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
+                
+                html += `
+                    <div class="recommendation ${recClass}">
+                        ${rec} ${data.line_analysis.bookmaker_line}
+                        <br>
+                        <span style="font-size: 0.8em;">
+                            Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
+                            Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
+                            Confiance: ${betConf}
+                        </span>
                     </div>
-                    <div class="info-row">
-                        <span>Écart-type:</span>
-                        <strong>${data.season_stats.std_dev}</strong>
-                    </div>
-                    <div class="info-row">
-                        <span>Matchs joués:</span>
-                        <strong>${data.season_stats.games_played}</strong>
-                    
+                `;
+            }
+
+            resultDiv.innerHTML = html;
+            resultDiv.classList.add('show');
+        }
+
+        function displayError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <h3>❌ Erreur</h3>
+                    <p>${message}</p>
+                    <p style="margin-top: 15px;">
+                        Le service peut prendre 30-60 secondes à démarrer.
+                        Réessaye dans quelques instants.
+                    </p>
+                </div>
+            `;
+            resultDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
