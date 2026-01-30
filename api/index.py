@@ -1,873 +1,860 @@
-"""
-NBA Betting Analyzer v3.0 - FINAL avec Défense Améliorée
-Inclut: R², tests stats, outliers, test A/B, analyse défense détaillée
-"""
-
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-import numpy as np
-import pandas as pd
-from datetime import datetime
-from scipy import stats
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-
-app = Flask(__name__)
-CORS(app)
-
-# Import nba_api
-try:
-    from nba_api.stats.endpoints import playergamelog, commonteamroster, teamgamelog
-    from nba_api.stats.static import players, teams
-    NBA_API_AVAILABLE = True
-    print("✅ nba_api imported successfully")
-except ImportError as e:
-    NBA_API_AVAILABLE = False
-    print(f"❌ nba_api not available: {e}")
-
-class NBAAnalyzerV3:
-    """Analyste NBA v3 avec défense améliorée"""
-    
-    def __init__(self):
-        self.current_season = '2025-26'
-        
-        # Ratings défensifs (VRAIS chiffres NBA 2024-25)
-        self.defensive_ratings = {
-            # ELITE (Top 5)
-            'CLE': 108.2,  # Meilleure défense NBA
-            'OKC': 109.1,
-            'ORL': 108.6,
-            'MIN': 108.9,
-            'MIA': 111.2,
-            
-            # EXCELLENTE (6-10)
-            'BOS': 110.5,
-            'NYK': 110.7,
-            'HOU': 110.9,
-            'DEN': 111.3,
-            'MIL': 112.4,
-            
-            # BONNE (11-15)
-            'LAC': 111.8,
-            'MEM': 112.6,
-            'PHI': 113.1,
-            'GSW': 112.1,
-            'DAL': 112.7,
-            
-            # MOYENNE (16-20)
-            'SAC': 114.9,
-            'NOP': 114.3,
-            'PHX': 114.2,
-            'BKN': 114.8,
-            'LAL': 113.4,
-            
-            # FAIBLE (21-25)
-            'CHI': 113.9,
-            'IND': 116.5,
-            'TOR': 115.4,
-            'ATL': 115.2,
-            'UTA': 115.3,
-            
-            # TRÈS FAIBLE (26-30)
-            'DET': 115.8,
-            'POR': 115.7,
-            'SAS': 116.0,
-            'CHA': 116.1,
-            'WAS': 116.8  # Pire défense NBA
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Betting Analyzer 🏀 v3.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        # Catégories défensives
-        self.defense_categories = {
-            'ELITE': ['CLE', 'OKC', 'ORL', 'MIN', 'MIA'],
-            'EXCELLENTE': ['BOS', 'NYK', 'HOU', 'DEN', 'MIL'],
-            'BONNE': ['LAC', 'MEM', 'PHI', 'GSW', 'DAL'],
-            'MOYENNE': ['SAC', 'NOP', 'PHX', 'BKN', 'LAL'],
-            'FAIBLE': ['CHI', 'IND', 'TOR', 'ATL', 'UTA'],
-            'TRÈS FAIBLE': ['DET', 'POR', 'SAS', 'CHA', 'WAS']
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-    
-    def get_player_id(self, player_name):
-        """Trouve l'ID d'un joueur"""
-        if not NBA_API_AVAILABLE:
-            return None
-        
-        try:
-            all_players = players.get_players()
-            player = [p for p in all_players if player_name.lower() in p['full_name'].lower()]
-            
-            if player:
-                return player[0]['id']
-            return None
-        except Exception as e:
-            print(f"Error finding player: {e}")
-            return None
-    
-    def get_season_games(self, player_id):
-        """Récupère TOUS les matchs de la saison"""
-        if not NBA_API_AVAILABLE or not player_id:
-            return None
-        
-        try:
-            gamelog = playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=self.current_season
-            )
-            df = gamelog.get_data_frames()[0]
-            
-            if df.empty:
-                return None
-            
-            df['PTS'] = pd.to_numeric(df['PTS'], errors='coerce')
-            df['MIN'] = pd.to_numeric(df['MIN'], errors='coerce')
-            df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
-            df['IS_HOME'] = df['MATCHUP'].str.contains('vs.')
-            df['OPPONENT'] = df['MATCHUP'].str.extract(r'(?:vs\.|@)\s*([A-Z]{3})')[0]
-            df = df.sort_values('GAME_DATE', ascending=False).reset_index(drop=True)
-            
-            return df
-            
-        except Exception as e:
-            print(f"Error fetching games: {e}")
-            return None
-    
-    def detect_outliers(self, games_df):
-        """Détecte outliers avec 3 méthodes + consensus"""
-        if games_df is None or len(games_df) < 10:
-            return games_df, {
-                'method': 'NONE',
-                'outliers_detected': 0,
-                'outliers': [],
-                'recommendation': 'Données insuffisantes'
-            }
-        
-        points = games_df['PTS'].values
-        n = len(points)
-        
-        # Z-Score
-        mean = np.mean(points)
-        std = np.std(points)
-        z_scores = np.abs((points - mean) / std) if std > 0 else np.zeros(n)
-        z_outliers = z_scores > 3
-        
-        # IQR
-        q1 = np.percentile(points, 25)
-        q3 = np.percentile(points, 75)
-        iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
-        iqr_outliers = (points < lower_bound) | (points > upper_bound)
-        
-        # MAD
-        median = np.median(points)
-        mad = np.median(np.abs(points - median))
-        modified_z_scores = 0.6745 * (points - median) / mad if mad > 0 else np.zeros(n)
-        mad_outliers = np.abs(modified_z_scores) > 3.5
-        
-        # Consensus
-        outlier_votes = z_outliers.astype(int) + iqr_outliers.astype(int) + mad_outliers.astype(int)
-        consensus_outliers = outlier_votes >= 2
-        
-        outliers_info = []
-        for idx in np.where(consensus_outliers)[0]:
-            game_date = games_df.iloc[idx]['GAME_DATE']
-            opponent = games_df.iloc[idx]['OPPONENT']
-            pts = float(points[idx])
-            
-            if pts > upper_bound:
-                reason = f"Performance exceptionnelle ({pts:.0f} pts >> moyenne {mean:.1f})"
-                severity = "HIGH"
-            elif pts < lower_bound:
-                reason = f"Performance très faible ({pts:.0f} pts << moyenne {mean:.1f})"
-                severity = "HIGH"
-            else:
-                reason = "Écart inhabituel de la distribution"
-                severity = "MEDIUM"
-            
-            outliers_info.append({
-                'game_number': int(n - idx),
-                'date': str(game_date.date()),
-                'opponent': str(opponent),
-                'points': pts,
-                'z_score': round(float(z_scores[idx]), 2),
-                'methods_detected': {
-                    'z_score': bool(z_outliers[idx]),
-                    'iqr': bool(iqr_outliers[idx]),
-                    'mad': bool(mad_outliers[idx])
-                },
-                'reason': reason,
-                'severity': severity
-            })
-        
-        clean_df = games_df[~consensus_outliers].copy()
-        outlier_pct = (np.sum(consensus_outliers) / n * 100)
-        
-        outlier_stats = {
-            'method': 'CONSENSUS (Z-Score + IQR + MAD)',
-            'total_games': int(n),
-            'outliers_detected': int(np.sum(consensus_outliers)),
-            'outliers_pct': round(float(outlier_pct), 1),
-            'outliers': outliers_info,
-            'thresholds': {
-                'z_score_limit': 3.0,
-                'iqr_lower': round(float(lower_bound), 1),
-                'iqr_upper': round(float(upper_bound), 1),
-                'mean': round(float(mean), 1),
-                'median': round(float(median), 1),
-                'std': round(float(std), 2)
-            },
-            'recommendation': self._get_outlier_recommendation(int(np.sum(consensus_outliers)), n)
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
         }
-        
-        return clean_df, outlier_stats
-    
-    def _get_outlier_recommendation(self, n_outliers, total_games):
-        """Recommandation basée sur outliers"""
-        pct = (n_outliers / total_games * 100) if total_games > 0 else 0
-        
-        if n_outliers == 0:
-            return "✅ Aucun outlier - Données très consistantes"
-        elif pct <= 5:
-            return "✅ Peu d'outliers (<5%) - Données fiables, nettoyage recommandé"
-        elif pct <= 10:
-            return "⚠️ Quelques outliers (5-10%) - Données acceptables"
-        elif pct <= 20:
-            return "⚠️ Nombreux outliers (10-20%) - Joueur très volatil, garder tous les matchs"
-        else:
-            return "❌ Trop d'outliers (>20%) - Données peu fiables pour prédiction"
-    
-    def calculate_weighted_average(self, games_df):
-        """Moyenne pondérée"""
-        if games_df is None or len(games_df) == 0:
-            return 0, 0
-        
-        points = games_df['PTS'].values
-        n = len(points)
-        weights = np.zeros(n)
-        
-        if n >= 10:
-            weights[:10] = 0.5 / 10
-        else:
-            weights[:n] = 0.5 / n
-        
-        if n > 10:
-            end_idx = min(30, n)
-            count = end_idx - 10
-            weights[10:end_idx] = 0.3 / count
-        
-        if n > 30:
-            count = n - 30
-            weights[30:] = 0.2 / count
-        
-        weights = weights / weights.sum()
-        
-        weighted_avg = np.average(points, weights=weights)
-        weighted_std = np.sqrt(np.average((points - weighted_avg)**2, weights=weights))
-        
-        return float(weighted_avg), float(weighted_std)
-    
-    def calculate_splits(self, games_df, opponent=None):
-        """Splits home/away/vs opponent"""
-        if games_df is None or len(games_df) == 0:
-            return {}
-        
-        splits = {}
-        
-        home_games = games_df[games_df['IS_HOME'] == True]
-        if len(home_games) > 0:
-            home_avg = home_games['PTS'].mean()
-            home_std = home_games['PTS'].std()
-            splits['home'] = {
-                'avg': round(float(home_avg), 1) if not pd.isna(home_avg) else 0.0,
-                'std': round(float(home_std), 1) if not pd.isna(home_std) else 0.0,
-                'games': int(len(home_games))
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #3b82f6;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .prediction-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .recommendation {
+            background: #10b981;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .recommendation.under {
+            background: #ef4444;
+        }
+
+        .recommendation.skip {
+            background: #f59e0b;
+        }
+
+        .alert-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .alert-box.critical {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .alert-box.info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .outlier-item {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        .outlier-item.high {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .ab-test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .ab-version {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .ab-version.winner {
+            border-color: #10b981;
+            background: #d1fae5;
+        }
+
+        .confidence-score {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .confidence-score.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .confidence-score.low {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .confidence-score-value {
+            font-size: 3.5em;
+            font-weight: 800;
+        }
+
+        .splits {
+            margin-top: 20px;
+        }
+
+        .splits h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            background: #fee2e2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .stat-grid, .ab-test-grid {
+                grid-template-columns: 1fr;
             }
-        
-        away_games = games_df[games_df['IS_HOME'] == False]
-        if len(away_games) > 0:
-            away_avg = away_games['PTS'].mean()
-            away_std = away_games['PTS'].std()
-            splits['away'] = {
-                'avg': round(float(away_avg), 1) if not pd.isna(away_avg) else 0.0,
-                'std': round(float(away_std), 1) if not pd.isna(away_std) else 0.0,
-                'games': int(len(away_games))
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏀 NBA Betting Analyzer</h1>
+            <p>v3.0 - Outliers, R², Test A/B, Défense</p>
+            <div class="badge">✨ COMPLET</div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #667eea;">1️⃣ Choisis une équipe</h2>
+            
+            <div class="form-group">
+                <label>Équipe à analyser</label>
+                <select id="team" onchange="loadTeamInfo()">
+                    <option value="">-- Sélectionne une équipe --</option>
+                    <option value="ATL">Atlanta Hawks</option>
+                    <option value="BOS">Boston Celtics</option>
+                    <option value="BKN">Brooklyn Nets</option>
+                    <option value="CHA">Charlotte Hornets</option>
+                    <option value="CHI">Chicago Bulls</option>
+                    <option value="CLE">Cleveland Cavaliers</option>
+                    <option value="DAL">Dallas Mavericks</option>
+                    <option value="DEN">Denver Nuggets</option>
+                    <option value="DET">Detroit Pistons</option>
+                    <option value="GSW">Golden State Warriors</option>
+                    <option value="HOU">Houston Rockets</option>
+                    <option value="IND">Indiana Pacers</option>
+                    <option value="LAC">LA Clippers</option>
+                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="MEM">Memphis Grizzlies</option>
+                    <option value="MIA">Miami Heat</option>
+                    <option value="MIL">Milwaukee Bucks</option>
+                    <option value="MIN">Minnesota Timberwolves</option>
+                    <option value="NOP">New Orleans Pelicans</option>
+                    <option value="NYK">New York Knicks</option>
+                    <option value="OKC">Oklahoma City Thunder</option>
+                    <option value="ORL">Orlando Magic</option>
+                    <option value="PHI">Philadelphia 76ers</option>
+                    <option value="PHX">Phoenix Suns</option>
+                    <option value="POR">Portland Trail Blazers</option>
+                    <option value="SAC">Sacramento Kings</option>
+                    <option value="SAS">San Antonio Spurs</option>
+                    <option value="TOR">Toronto Raptors</option>
+                    <option value="UTA">Utah Jazz</option>
+                    <option value="WAS">Washington Wizards</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="teamLoading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Chargement roster...</p>
+        </div>
+
+        <div id="teamInfo" class="card" style="display: none;">
+            <h2 style="margin-bottom: 20px; color: #667eea;">2️⃣ Prochain match</h2>
+            
+            <div id="nextGameInfo" class="info-box"></div>
+
+            <div class="form-group">
+                <label>Joueur à analyser</label>
+                <select id="player">
+                    <option value="">-- Sélectionne un joueur --</option>
+                </select>
+            </div>
+
+            <button class="btn" onclick="viewPlayerStats()" style="background: #3b82f6; margin-bottom: 15px;">
+                📊 Voir Stats Complètes
+            </button>
+
+            <div class="form-group">
+                <label>Ligne Bookmaker (points)</label>
+                <input type="number" id="line" placeholder="Ex: 24.5" step="0.5">
+            </div>
+
+            <button class="btn" onclick="analyzePlayer()">🔍 Analyser (v3.0)</button>
+        </div>
+
+        <div id="statsViewer" class="card" style="display: none;">
+            <!-- Stats complètes -->
+        </div>
+
+        <div id="loading" class="card loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyse v3.0 en cours (outliers, R², défense)...</p>
+        </div>
+
+        <div id="result" class="card result">
+            <!-- Résultats ici -->
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://nba-betting-1.onrender.com';
+        let currentTeamData = null;
+
+        async function loadTeamInfo() {
+            const teamCode = document.getElementById('team').value;
+            
+            if (!teamCode) {
+                document.getElementById('teamInfo').style.display = 'none';
+                return;
             }
-        
-        if opponent:
-            vs_opp = games_df[games_df['OPPONENT'] == opponent]
-            if len(vs_opp) > 0:
-                opp_avg = vs_opp['PTS'].mean()
-                opp_std = vs_opp['PTS'].std()
-                splits['vs_opponent'] = {
-                    'avg': round(float(opp_avg), 1) if not pd.isna(opp_avg) else 0.0,
-                    'std': round(float(opp_std), 1) if not pd.isna(opp_std) else 0.0,
-                    'games': int(len(vs_opp)),
-                    'last_3': [float(x) for x in (vs_opp.head(3)['PTS'].tolist() if len(vs_opp) >= 3 else vs_opp['PTS'].tolist())]
+
+            document.getElementById('teamLoading').style.display = 'block';
+            document.getElementById('teamInfo').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/team-roster/${teamCode}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-        
-        return splits
-    
-    def calculate_trend_with_r2(self, games_df, num_games=10):
-        """Tendance + R² + p-value"""
-        if games_df is None or len(games_df) < 5:
-            return {
-                'slope': 0.0,
-                'r_squared': 0.0,
-                'p_value': 1.0,
-                'interpretation': 'Données insuffisantes',
-                'reliable': False
+
+                const data = await response.json();
+                currentTeamData = data;
+
+                const nextGame = data.next_game;
+                document.getElementById('nextGameInfo').innerHTML = `
+                    <h3>📅 Dernier match</h3>
+                    <p><strong>Date:</strong> ${nextGame.last_game_date}</p>
+                    <p><strong>Adversaire:</strong> ${nextGame.opponent}</p>
+                    <p><strong>Lieu:</strong> ${nextGame.location}</p>
+                    <p style="color: #999; font-size: 0.9em; margin-top: 10px;">${nextGame.note || 'Vérifie le calendrier NBA'}</p>
+                `;
+
+                const playerSelect = document.getElementById('player');
+                playerSelect.innerHTML = '<option value="">-- Sélectionne un joueur --</option>';
+                
+                data.roster.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.name;
+                    const volBadge = player.volatility ? ` 📊${player.volatility}` : '';
+                    option.textContent = `${player.name} - ${player.position}${volBadge}`;
+                    playerSelect.appendChild(option);
+                });
+
+                document.getElementById('teamInfo').style.display = 'block';
+
+            } catch (error) {
+                displayError(`Erreur lors du chargement: ${error.message}`);
+            } finally {
+                document.getElementById('teamLoading').style.display = 'none';
             }
-        
-        try:
-            recent = games_df.head(num_games)
-            n = len(recent)
-            
-            X = np.arange(n).reshape(-1, 1)
-            y = recent['PTS'].values
-            
-            model = LinearRegression()
-            model.fit(X, y)
-            y_pred = model.predict(X)
-            
-            r2 = r2_score(y, y_pred)
-            
-            residuals = y - y_pred
-            s_err = np.sqrt(np.sum(residuals**2) / (n - 2))
-            
-            x_mean = X.mean()
-            x_var = np.sum((X - x_mean)**2)
-            se_slope = s_err / np.sqrt(x_var) if x_var > 0 else 1
-            
-            t_stat = model.coef_[0] / se_slope if se_slope > 0 else 0
-            p_value = 2 * (1 - stats.t.cdf(abs(t_stat), n - 2))
-            
-            slope = float(model.coef_[0])
-            
-            if r2 < 0.3:
-                interpretation = "Tendance non fiable (R² faible)"
-                reliable = False
-            elif r2 < 0.6:
-                interpretation = "Tendance modérée"
-                reliable = p_value < 0.05
-            else:
-                interpretation = "Tendance forte et fiable"
-                reliable = True
-            
-            return {
-                'slope': round(slope, 2),
-                'r_squared': round(float(r2), 3),
-                'p_value': round(float(p_value), 4),
-                'interpretation': interpretation,
-                'reliable': reliable,
-                'sample_size': n
-            }
-            
-        except Exception as e:
-            print(f"Error calculating trend: {e}")
-            return {
-                'slope': 0.0,
-                'r_squared': 0.0,
-                'p_value': 1.0,
-                'interpretation': 'Erreur calcul',
-                'reliable': False
-            }
-    
-    def calculate_minutes_stats(self, games_df):
-        """Stats minutes + alerte"""
-        if games_df is None or len(games_df) == 0:
-            return None
-        
-        recent_10 = games_df.head(10)
-        avg_minutes = float(recent_10['MIN'].mean())
-        min_minutes = float(recent_10['MIN'].min())
-        
-        alert = None
-        alert_level = 'OK'
-        
-        if avg_minutes < 20:
-            alert = "⚠️ DANGER: Temps de jeu très faible (<20 min). Risque benching élevé!"
-            alert_level = 'CRITICAL'
-        elif avg_minutes < 25:
-            alert = "⚠️ PRUDENCE: Temps de jeu modéré (20-25 min). Surveiller le coach."
-            alert_level = 'WARNING'
-        elif avg_minutes < 30:
-            alert = "ℹ️ Temps de jeu correct mais pas optimal (25-30 min)."
-            alert_level = 'INFO'
-        
-        return {
-            'avg_last_10': round(avg_minutes, 1),
-            'min_last_10': round(min_minutes, 1),
-            'alert': alert,
-            'alert_level': alert_level
         }
-    
-    def calculate_confidence_score(self, games_df, splits, trend_stats, minutes_stats):
-        """Score de confiance 0-100"""
-        score = 100
-        factors = {}
-        
-        n_games = len(games_df)
-        if n_games < 15:
-            sample_penalty = (15 - n_games) * 2
-            score -= sample_penalty
-            factors['sample_size'] = f"-{sample_penalty} pts (seulement {n_games} matchs)"
-        else:
-            factors['sample_size'] = "+0 pts (sample OK)"
-        
-        std_dev = float(games_df['PTS'].std())
-        if std_dev > 7.0:
-            std_penalty = min(30, (std_dev - 7) * 4)
-            score -= std_penalty
-            factors['consistency'] = f"-{std_penalty:.0f} pts (écart-type {std_dev:.1f} trop élevé)"
-        elif std_dev < 3.0:
-            factors['consistency'] = "+5 pts (très consistant)"
-            score += 5
-        else:
-            factors['consistency'] = "+0 pts (consistance OK)"
-        
-        r2 = trend_stats['r_squared']
-        if r2 < 0.3:
-            score -= 15
-            factors['trend_quality'] = f"-15 pts (R²={r2:.3f} - tendance peu fiable)"
-        elif r2 > 0.7:
-            factors['trend_quality'] = f"+5 pts (R²={r2:.3f} - tendance forte)"
-            score += 5
-        else:
-            factors['trend_quality'] = f"+0 pts (R²={r2:.3f} - tendance modérée)"
-        
-        if minutes_stats:
-            avg_min = minutes_stats['avg_last_10']
-            if avg_min < 20:
-                score -= 20
-                factors['playing_time'] = f"-20 pts ({avg_min:.1f} min - benching risk)"
-            elif avg_min < 25:
-                score -= 10
-                factors['playing_time'] = f"-10 pts ({avg_min:.1f} min - rotation limitée)"
-            else:
-                factors['playing_time'] = f"+0 pts ({avg_min:.1f} min OK)"
-        
-        if 'home' in splits and 'away' in splits:
-            home_avg = splits['home']['avg']
-            away_avg = splits['away']['avg']
-            overall_avg = float(games_df['PTS'].mean())
-            
-            diff = abs(home_avg - away_avg)
-            if diff > overall_avg * 0.25:
-                score -= 15
-                factors['split_consistency'] = f"-15 pts (écart H/A de {diff:.1f} pts trop large)"
-            else:
-                factors['split_consistency'] = "+0 pts (splits cohérents)"
-        
-        final_score = max(0, min(100, score))
-        
-        if final_score >= 75:
-            level = 'HIGH'
-        elif final_score >= 60:
-            level = 'MEDIUM'
-        else:
-            level = 'LOW'
-        
-        return {
-            'score': round(final_score, 1),
-            'level': level,
-            'factors': factors,
-            'recommendation': self._get_confidence_recommendation(final_score)
-        }
-    
-    def _get_confidence_recommendation(self, score):
-        """Recommandation basée sur score"""
-        if score >= 80:
-            return "✅ Excellente fiabilité - Bet avec confiance"
-        elif score >= 70:
-            return "✅ Bonne fiabilité - Bet recommandé"
-        elif score >= 60:
-            return "⚠️ Fiabilité moyenne - Bet avec prudence"
-        elif score >= 50:
-            return "⚠️ Fiabilité faible - Réduire la mise"
-        else:
-            return "❌ Fiabilité insuffisante - SKIP ce bet"
-    
-    def adjust_for_matchup(self, base_prediction, opponent, is_home, splits):
-        """
-        Ajuste prédiction avec ANALYSE DÉTAILLÉE de la défense
-        """
-        adjusted = base_prediction
-        adjustments = {}
-        
-        # === DÉFENSE ADVERSE (AMÉLIORÉ) ===
-        avg_rating = 113.0
-        opp_rating = self.defensive_ratings.get(opponent, avg_rating)
-        
-        # Catégorie défensive
-        defense_category = 'MOYENNE'
-        for cat, teams in self.defense_categories.items():
-            if opponent in teams:
-                defense_category = cat
-                break
-        
-        # Facteur d'ajustement
-        defense_factor = opp_rating / avg_rating
-        adjusted *= defense_factor
-        
-        # Impact en points
-        defense_impact = adjusted - base_prediction
-        
-        # Explication
-        if defense_category in ['ELITE', 'EXCELLENTE']:
-            defense_strength = "très difficile"
-            emoji = "🛡️"
-        elif defense_category == 'BONNE':
-            defense_strength = "difficile"
-            emoji = "🔒"
-        elif defense_category == 'MOYENNE':
-            defense_strength = "normale"
-            emoji = "➖"
-        elif defense_category == 'FAIBLE':
-            defense_strength = "favorable"
-            emoji = "✅"
-        else:
-            defense_strength = "très favorable"
-            emoji = "💯"
-        
-        adjustments['defense'] = {
-            'opponent': opponent,
-            'rating': round(opp_rating, 1),
-            'category': defense_category,
-            'strength': defense_strength,
-            'emoji': emoji,
-            'factor': round(defense_factor, 3),
-            'impact_pts': round(defense_impact, 1),
-            'explanation': f"{emoji} {opponent} a une défense {defense_strength} (rating {opp_rating:.1f}). Impact: {defense_impact:+.1f} pts"
-        }
-        
-        # === HOME/AWAY ===
-        if is_home and 'home' in splits:
-            home_diff = splits['home']['avg'] - base_prediction
-            adjusted += home_diff * 0.5
-            adjustments['home_away'] = {
-                'type': 'HOME',
-                'impact_pts': round(home_diff * 0.5, 1),
-                'explanation': f"🏠 Domicile: {home_diff * 0.5:+.1f} pts"
+
+        async function viewPlayerStats() {
+            const player = document.getElementById('player').value;
+
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
             }
-        elif not is_home and 'away' in splits:
-            away_diff = splits['away']['avg'] - base_prediction
-            adjusted += away_diff * 0.5
-            adjustments['home_away'] = {
-                'type': 'AWAY',
-                'impact_pts': round(away_diff * 0.5, 1),
-                'explanation': f"✈️ Extérieur: {away_diff * 0.5:+.1f} pts"
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('statsViewer').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/api/player-stats/${encodeURIComponent(player)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayPlayerStats(data);
+
+            } catch (error) {
+                displayError(`Erreur stats: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
             }
-        
-        # === vs OPPONENT ===
-        if 'vs_opponent' in splits and splits['vs_opponent']['games'] >= 3:
-            opp_avg = splits['vs_opponent']['avg']
-            opp_diff = opp_avg - base_prediction
-            weight = min(splits['vs_opponent']['games'] / 10, 0.3)
-            adjusted += opp_diff * weight
-            adjustments['vs_opponent'] = {
-                'games': splits['vs_opponent']['games'],
-                'avg_vs': round(opp_avg, 1),
-                'impact_pts': round(opp_diff * weight, 1),
-                'explanation': f"📊 Historique vs {opponent} ({splits['vs_opponent']['games']} matchs): {opp_diff * weight:+.1f} pts"
+        }
+
+        function displayPlayerStats(data) {
+            const statsDiv = document.getElementById('statsViewer');
+            
+            let html = `
+                <h2 style="color: #667eea; margin-bottom: 20px;">📊 Stats Complètes - ${data.player}</h2>
+                
+                <div class="info-box">
+                    <h3>Saison ${data.season}</h3>
+                    <p><strong>Matchs:</strong> ${data.total_games}</p>
+                    <p><strong>Période:</strong> ${data.date_range.first_game} au ${data.date_range.last_game}</p>
+                    <p><strong>Volatilité:</strong> ${data.volatility}</p>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Moyennes</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Saison</div>
+                        <div class="stat-value">${data.averages.season} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">10 derniers</div>
+                        <div class="stat-value">${data.averages.last_10} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">5 derniers</div>
+                        <div class="stat-value">${data.averages.last_5} pts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Domicile</div>
+                        <div class="stat-value">${data.averages.home} pts</div>
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin: 20px 0 10px 0;">Tous les matchs (${data.all_games.length})</h3>
+                <div style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            `;
+
+            data.all_games.forEach(game => {
+                const bgColor = game.points >= data.averages.season ? '#d1fae5' : '#fee2e2';
+                html += `
+                    <div style="background: ${bgColor}; padding: 10px; margin-bottom: 8px; border-radius: 5px; display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>${game.date}</strong> - ${game.matchup}
+                            <br><small>${game.location}</small>
+                        </div>
+                        <div style="font-size: 1.5em; font-weight: 700; color: #667eea;">
+                            ${game.points} pts
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            statsDiv.innerHTML = html;
+            statsDiv.style.display = 'block';
+        }
+
+        async function analyzePlayer() {
+            const player = document.getElementById('player').value;
+            const line = document.getElementById('line').value;
+
+            if (!player) {
+                alert('Sélectionne un joueur!');
+                return;
             }
-        
-        return float(adjusted), adjustments
-    
-    def run_ab_test(self, full_games, clean_games, opponent, is_home):
-        """Test A/B: Avec vs Sans outliers"""
-        weighted_avg_full, weighted_std_full = self.calculate_weighted_average(full_games)
-        splits_full = self.calculate_splits(full_games, opponent)
-        trend_full = self.calculate_trend_with_r2(full_games)
-        
-        base_pred_full = weighted_avg_full
-        if trend_full['reliable']:
-            base_pred_full += (trend_full['slope'] * 1.5)
-        
-        final_pred_full, _ = self.adjust_for_matchup(base_pred_full, opponent, is_home, splits_full)
-        
-        weighted_avg_clean, weighted_std_clean = self.calculate_weighted_average(clean_games)
-        splits_clean = self.calculate_splits(clean_games, opponent)
-        trend_clean = self.calculate_trend_with_r2(clean_games)
-        
-        base_pred_clean = weighted_avg_clean
-        if trend_clean['reliable']:
-            base_pred_clean += (trend_clean['slope'] * 1.5)
-        
-        final_pred_clean, _ = self.adjust_for_matchup(base_pred_clean, opponent, is_home, splits_clean)
-        
-        diff = abs(final_pred_full - final_pred_clean)
-        std_improvement = ((weighted_std_full - weighted_std_clean) / weighted_std_full * 100) if weighted_std_full > 0 else 0
-        r2_improvement = trend_clean['r_squared'] - trend_full['r_squared']
-        
-        if len(clean_games) < 10:
-            winner = 'FULL'
-            reason = "Pas assez de données après nettoyage"
-        elif std_improvement > 15 and r2_improvement > 0.1:
-            winner = 'CLEAN'
-            reason = f"Nettoyage améliore significativement (std -{std_improvement:.1f}%, R² +{r2_improvement:.3f})"
-        elif diff > 3:
-            winner = 'CLEAN'
-            reason = f"Grande différence ({diff:.1f} pts) - outliers faussent la prédiction"
-        else:
-            winner = 'FULL'
-            reason = "Peu d'impact des outliers - garder toutes les données"
-        
-        return {
-            'version_a_full': {
-                'prediction': round(final_pred_full, 1),
-                'std_dev': round(weighted_std_full, 2),
-                'r_squared': round(trend_full['r_squared'], 3),
-                'games_used': len(full_games)
-            },
-            'version_b_clean': {
-                'prediction': round(final_pred_clean, 1),
-                'std_dev': round(weighted_std_clean, 2),
-                'r_squared': round(trend_clean['r_squared'], 3),
-                'games_used': len(clean_games)
-            },
-            'comparison': {
-                'prediction_diff': round(diff, 2),
-                'std_improvement': round(std_improvement, 1),
-                'r2_improvement': round(r2_improvement, 3)
-            },
-            'winner': winner,
-            'reason': reason
-        }
-    
-    def predict_points(self, player_name, opponent, is_home=True, line=None):
-        """Prédiction COMPLÈTE"""
-        if not NBA_API_AVAILABLE:
-            return {'error': 'nba_api not available', 'player': player_name, 'status': 'API_UNAVAILABLE'}
-        
-        player_id = self.get_player_id(player_name)
-        if not player_id:
-            return {'error': f'Player not found: {player_name}', 'status': 'PLAYER_NOT_FOUND'}
-        
-        season_games = self.get_season_games(player_id)
-        if season_games is None or len(season_games) < 10:
-            return {'error': 'Not enough games this season', 'player': player_name, 'status': 'INSUFFICIENT_DATA'}
-        
-        clean_games, outlier_stats = self.detect_outliers(season_games)
-        ab_test = self.run_ab_test(season_games, clean_games, opponent, is_home)
-        
-        if ab_test['winner'] == 'CLEAN' and len(clean_games) >= 10:
-            games_to_use = clean_games
-            outlier_stats['data_used'] = 'CLEANED'
-        else:
-            games_to_use = season_games
-            outlier_stats['data_used'] = 'FULL'
-        
-        weighted_avg, weighted_std = self.calculate_weighted_average(games_to_use)
-        splits = self.calculate_splits(games_to_use, opponent)
-        trend_stats = self.calculate_trend_with_r2(games_to_use)
-        minutes_stats = self.calculate_minutes_stats(games_to_use)
-        confidence_analysis = self.calculate_confidence_score(games_to_use, splits, trend_stats, minutes_stats)
-        
-        base_prediction = weighted_avg
-        if trend_stats['reliable']:
-            base_prediction += (trend_stats['slope'] * 1.5)
-        
-        final_prediction, adjustment_details = self.adjust_for_matchup(base_prediction, opponent, is_home, splits)
-        
-        n = len(games_to_use)
-        se = weighted_std / np.sqrt(n)
-        confidence_interval = stats.t.interval(0.95, n - 1, loc=final_prediction, scale=se)
-        
-        recommendation = None
-        over_probability = None
-        edge = None
-        
-        if line is not None:
-            z_score = (line - final_prediction) / weighted_std if weighted_std > 0 else 0
-            over_probability = 1 - stats.norm.cdf(z_score)
-            edge = over_probability - 0.5
-            
-            if over_probability >= 0.58 and edge >= 0.08:
-                recommendation = 'OVER'
-            elif over_probability <= 0.42 and edge <= -0.08:
-                recommendation = 'UNDER'
-            else:
-                recommendation = 'SKIP'
-        
-        result = {
-            'player': player_name,
-            'opponent': opponent,
-            'is_home': is_home,
-            'prediction': round(final_prediction, 1),
-            'confidence_interval': {
-                'lower': round(float(confidence_interval[0]), 1),
-                'upper': round(float(confidence_interval[1]), 1),
-                'confidence_level': '95%',
-                'width': round(float(confidence_interval[1] - confidence_interval[0]), 1)
-            },
-            'season_stats': {
-                'weighted_avg': round(weighted_avg, 1),
-                'std_dev': round(weighted_std, 1),
-                'games_played': len(season_games),
-                'games_used': len(games_to_use),
-                'consistency_level': 'Excellent' if weighted_std < 3 else 'Bon' if weighted_std < 5 else 'Moyen' if weighted_std < 7 else 'Faible'
-            },
-            'trend_analysis': trend_stats,
-            'minutes_stats': minutes_stats,
-            'confidence_score': confidence_analysis,
-            'splits': splits,
-            'matchup_analysis': {
-                'defense_impact': adjustment_details.get('defense', {}),
-                'home_away_impact': adjustment_details.get('home_away', {}),
-                'historical_impact': adjustment_details.get('vs_opponent', {}),
-                'total_adjustments': round(final_prediction - base_prediction, 1)
-            },
-            'outlier_analysis': outlier_stats,
-            'ab_test': ab_test,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        if line is not None:
-            result['line_analysis'] = {
-                'bookmaker_line': float(line),
-                'over_probability': round(float(over_probability), 3),
-                'under_probability': round(float(1 - over_probability), 3),
-                'edge': round(float(edge), 3),
-                'recommendation': recommendation,
-                'bet_confidence': 'HIGH' if abs(edge) >= 0.12 else 'MEDIUM' if abs(edge) >= 0.08 else 'LOW',
-                'kelly_criterion': round(float(edge * 2), 3) if abs(edge) >= 0.08 else 0.0
+
+            if (!currentTeamData) {
+                alert('Erreur: données équipe manquantes');
+                return;
             }
-        
-        result['status'] = 'SUCCESS'
-        return result
 
+            const nextGame = currentTeamData.next_game;
+            const opponent = nextGame.opponent;
+            const isHome = nextGame.is_home;
 
-analyzer = NBAAnalyzerV3()
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
 
-@app.route('/', methods=['GET'])
-def root():
-    return jsonify({
-        'message': 'NBA Betting Analyzer API v3.0 FINAL',
-        'status': 'online',
-        'season': '2025-26',
-        'features': ['Outliers', 'A/B test', 'R²', 'Défense détaillée']
-    })
+            try {
+                const response = await fetch(`${API_URL}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player: player,
+                        opponent: opponent,
+                        is_home: isHome,
+                        line: line ? parseFloat(line) : null
+                    })
+                });
 
-@app.route('/api/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'ok', 'nba_api': NBA_API_AVAILABLE, 'season': '2025-26', 'version': '3.0-FINAL-DEFENSE'})
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_player():
-    try:
-        data = request.json
-        player = data.get('player')
-        opponent = data.get('opponent')
-        is_home = data.get('is_home', True)
-        line = data.get('line')
-        
-        if not player or not opponent:
-            return jsonify({'error': 'Missing required fields: player, opponent'}), 400
-        
-        result = analyzer.predict_points(player, opponent, is_home, line)
-        
-        if result.get('status') == 'SUCCESS':
-            return jsonify(result)
-        else:
-            return jsonify(result), 404
-            
-    except Exception as e:
-        return jsonify({'error': str(e), 'status': 'ERROR'}), 500
+                const data = await response.json();
+                displayResults(data);
 
-@app.route('/api/player-stats/<player_name>', methods=['GET'])
-def get_player_stats(player_name):
-    try:
-        player_id = analyzer.get_player_id(player_name)
-        if not player_id:
-            return jsonify({'error': f'Player not found: {player_name}', 'status': 'PLAYER_NOT_FOUND'}), 404
-        
-        season_games = analyzer.get_season_games(player_id)
-        if season_games is None:
-            return jsonify({'error': 'No games found', 'status': 'NO_DATA'}), 404
-        
-        all_games_list = []
-        for idx, row in season_games.iterrows():
-            all_games_list.append({
-                'game_number': len(season_games) - idx,
-                'date': str(row['GAME_DATE'].date()),
-                'matchup': str(row['MATCHUP']),
-                'opponent': str(row['OPPONENT']),
-                'points': float(row['PTS']),
-                'minutes': float(row.get('MIN', 0)) if not pd.isna(row.get('MIN', 0)) else 0,
-                'is_home': bool(row['IS_HOME']),
-                'location': 'Domicile' if row['IS_HOME'] else 'Extérieur'
-            })
-        
-        recent_10 = season_games.head(10)['PTS'].mean()
-        recent_5 = season_games.head(5)['PTS'].mean()
-        home_games = season_games[season_games['IS_HOME'] == True]
-        away_games = season_games[season_games['IS_HOME'] == False]
-        volatility = float(season_games['PTS'].std())
-        
-        return jsonify({
-            'player': player_name,
-            'season': '2025-26',
-            'total_games': int(len(season_games)),
-            'date_range': {
-                'first_game': str(season_games.iloc[-1]['GAME_DATE'].date()),
-                'last_game': str(season_games.iloc[0]['GAME_DATE'].date())
-            },
-            'averages': {
-                'season': round(float(season_games['PTS'].mean()), 1),
-                'last_10': round(float(recent_10), 1),
-                'last_5': round(float(recent_5), 1),
-                'home': round(float(home_games['PTS'].mean()), 1) if len(home_games) > 0 else 0,
-                'away': round(float(away_games['PTS'].mean()), 1) if len(away_games) > 0 else 0
-            },
-            'volatility': round(volatility, 2),
-            'all_games': all_games_list,
-            'status': 'SUCCESS'
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e), 'status': 'ERROR'}), 500
-
-@app.route('/api/team-roster/<team_code>', methods=['GET'])
-def get_team_roster(team_code):
-    if not NBA_API_AVAILABLE:
-        return jsonify({'error': 'NBA API not available', 'status': 'API_UNAVAILABLE'}), 503
-    
-    try:
-        team_dict = {
-            'ATL': 1610612737, 'BOS': 1610612738, 'BKN': 1610612751, 'CHA': 1610612766,
-            'CHI': 1610612741, 'CLE': 1610612739, 'DAL': 1610612742, 'DEN': 1610612743,
-            'DET': 1610612765, 'GSW': 1610612744, 'HOU': 1610612745, 'IND': 1610612754,
-            'LAC': 1610612746, 'LAL': 1610612747, 'MEM': 1610612763, 'MIA': 1610612748,
-            'MIL': 1610612749, 'MIN': 1610612750, 'NOP': 1610612740, 'NYK': 1610612752,
-            'OKC': 1610612760, 'ORL': 1610612753, 'PHI': 1610612755, 'PHX': 1610612756,
-            'POR': 1610612757, 'SAC': 1610612758, 'SAS': 1610612759, 'TOR': 1610612761,
-            'UTA': 1610612762, 'WAS': 1610612764
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
         }
-        
-        team_id = team_dict.get(team_code.upper())
-        if not team_id:
-            return jsonify({'error': f'Invalid team code: {team_code}', 'status': 'INVALID_TEAM'}), 400
-        
-        roster = commonteamroster.CommonTeamRoster(team_id=team_id, season='2025-26')
-        roster_df = roster.get_data_frames()[0]
-        
-        roster_list = []
-        for _, player in roster_df.iterrows():
-            player_name = str(player['PLAYER'])
-            player_id_val = analyzer.get_player_id(player_name)
-            volatility = None
+
+        function displayResults(data) {
+            const resultDiv = document.getElementById('result');
             
-            if player_id_val:
-                games = analyzer.get_season_games(player_id_val)
-                if games is not None and len(games) >= 5:
-                    volatility = float(games['PTS'].std())
+            let html = `
+                <div class="prediction-box">
+                    <h2>${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} pts</div>
+                    <p>Intervalle 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
+                </div>
+            `;
+
+            // SCORE DE CONFIANCE
+            if (data.confidence_score) {
+                const confClass = data.confidence_score.level === 'HIGH' ? '' : 
+                                 data.confidence_score.level === 'MEDIUM' ? 'medium' : 'low';
+                html += `
+                    <div class="confidence-score ${confClass}">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Score de Confiance</div>
+                        <div class="confidence-score-value">${data.confidence_score.score}/100</div>
+                        <div style="margin-top: 10px; font-size: 1.1em;">${data.confidence_score.level}</div>
+                        <p style="margin-top: 15px; font-size: 0.9em;">${data.confidence_score.recommendation}</p>
+                    </div>
+                `;
+            }
+
+            // ANALYSE DÉFENSE (NOUVEAU)
+            if (data.matchup_analysis && data.matchup_analysis.defense_impact) {
+                const def = data.matchup_analysis.defense_impact;
+                
+                let defColor = '#10b981';
+                if (def.category === 'ELITE' || def.category === 'EXCELLENTE') {
+                    defColor = '#ef4444';
+                } else if (def.category === 'BONNE') {
+                    defColor = '#f59e0b';
+                } else if (def.category === 'MOYENNE') {
+                    defColor = '#6b7280';
+                }
+                
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; border-left: 5px solid ${defColor};">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">${def.emoji} Analyse Défense Adverse</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <p><strong>Équipe:</strong> ${def.opponent}</p>
+                                <p><strong>Rating défensif:</strong> ${def.rating}</p>
+                            </div>
+                            <div>
+                                <p><strong>Catégorie:</strong> <span style="color: ${defColor}; font-weight: 700;">${def.category}</span></p>
+                                <p><strong>Impact:</strong> <span style="color: ${def.impact_pts < 0 ? '#ef4444' : '#10b981'}; font-weight: 700;">${def.impact_pts > 0 ? '+' : ''}${def.impact_pts} pts</span></p>
+                            </div>
+                        </div>
+                        
+                        <p style="background: white; padding: 12px; border-radius: 8px; color: #374151;">
+                            ${def.explanation}
+                        </p>
+                    </div>
+                `;
+            }
             
-            roster_list.append({
-                'name': player_name,
-                'position': str(player.get('POSITION', 'N/A')),
-                'number': str(player.get('NUM', '')),
-                'volatility': round(volatility, 2) if volatility else None
-            })
-        
-        roster_list.sort(key=lambda x: x['volatility'] if x['volatility'] else 999)
-        
-        gamelog = teamgamelog.TeamGameLog( 
+            // RÉSUMÉ AJUSTEMENTS (NOUVEAU)
+            if (data.matchup_analysis) {
+                html += `
+                    <div style="background: #e0e7ff; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📋 Résumé Ajustements</h4>
+                `;
+                
+                if (data.matchup_analysis.defense_impact && data.matchup_analysis.defense_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.defense_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.home_away_impact && data.matchup_analysis.home_away_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.home_away_impact.explanation}</p>`;
+                }
+                if (data.matchup_analysis.historical_impact && data.matchup_analysis.historical_impact.explanation) {
+                    html += `<p>${data.matchup_analysis.historical_impact.explanation}</p>`;
+                }
+                
+                html += `
+                        <p style="margin-top: 10px; font-weight: 700; border-top: 2px solid #667eea; padding-top: 10px;">
+                            Total ajustements: <span style="color: ${data.matchup_analysis.total_adjustments < 0 ? '#ef4444' : '#10b981'};">
+                                ${data.matchup_analysis.total_adjustments > 0 ? '+' : ''}${data.matchup_analysis.total_adjustments} pts
+                            </span>
+                        </p>
+                    </div>
+                `;
+            }
+
+            // ALERTES MINUTES
+            if (data.minutes_stats && data.minutes_stats.alert) {
+                const alertClass = data.minutes_stats.alert_level === 'CRITICAL' ? 'critical' : 
+                                  data.minutes_stats.alert_level === 'WARNING' ? '' : 'info';
+                html += `
+                    <div class="alert-box ${alertClass}">
+                        <strong>Temps de Jeu</strong>
+                        <p>${data.minutes_stats.alert}</p>
+                        <p style="margin-top: 5px;">Moyenne 10 derniers: <strong>${data.minutes_stats.avg_last_10} min</strong></p>
+                    </div>
+                `;
+            }
+
+            // OUTLIERS
+            if (data.outlier_analysis && data.outlier_analysis.outliers_detected > 0) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🔍 Analyse Outliers</h3>
+                        <p><strong>Méthode:</strong> ${data.outlier_analysis.method}</p>
+                        <p><strong>Outliers détectés:</strong> ${data.outlier_analysis.outliers_detected} (${data.outlier_analysis.outliers_pct}%)</p>
+                        <p><strong>Données utilisées:</strong> ${data.outlier_analysis.data_used === 'CLEANED' ? 'Nettoyées (sans outliers)' : 'Complètes'}</p>
+                        <p style="margin-top: 10px; color: #666;">${data.outlier_analysis.recommendation}</p>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Outliers identifiés:</strong>
+                            ${data.outlier_analysis.outliers.map(o => `
+                                <div class="outlier-item ${o.severity === 'HIGH' ? 'high' : ''}">
+                                    <strong>${o.date}</strong> vs ${o.opponent}: <strong>${o.points} pts</strong>
+                                    <br><small>${o.reason}</small>
+                                    <br><small>Détecté par: ${Object.entries(o.methods_detected).filter(([k,v]) => v).map(([k]) => k).join(', ')}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // TEST A/B
+            if (data.ab_test) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🧪 Test A/B (Avec vs Sans Outliers)</h3>
+                        
+                        <div class="ab-test-grid">
+                            <div class="ab-version ${data.ab_test.winner === 'FULL' ? 'winner' : ''}">
+                                <h4>Version A (AVEC outliers)</h4>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_a_full.prediction} pts</p>
+                                <p><strong>Écart-type:</strong> ${data.ab_test.version_a_full.std_dev}</p>
+                                <p><strong>R²:</strong> ${data.ab_test.version_a_full.r_squared}</p>
+                                <p><strong>Matchs:</strong> ${data.ab_test.version_a_full.games_used}</p>
+                            </div>
+                            
+                            <div class="ab-version ${data.ab_test.winner === 'CLEAN' ? 'winner' : ''}">
+                                <h4>Version B (SANS outliers) ${data.ab_test.winner === 'CLEAN' ? '✅' : ''}</h4>
+                                <p><strong>Prédiction:</strong> ${data.ab_test.version_b_clean.prediction} pts</p>
+                                <p><strong>Écart-type:</strong> ${data.ab_test.version_b_clean.std_dev}</p>
+                                <p><strong>R²:</strong> ${data.ab_test.version_b_clean.r_squared}</p>
+                                <p><strong>Matchs:</strong> ${data.ab_test.version_b_clean.games_used}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 10px;">
+                            <p><strong>Amélioration std:</strong> ${data.ab_test.comparison.std_improvement}%</p>
+                            <p><strong>Amélioration R²:</strong> ${data.ab_test.comparison.r2_improvement}</p>
+                            <p style="margin-top: 10px; color: #059669;"><strong>Décision:</strong> ${data.ab_test.reason}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // STATS SAISON
+            html += `
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Moyenne pondérée</div>
+                        <div class="stat-value">${data.season_stats.weighted_avg}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Écart-type</div>
+                        <div class="stat-value">${data.season_stats.std_dev}</div>
+                        <small>${data.season_stats.consistency_level || 'N/A'}</small>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Matchs analysés</div>
+                        <div class="stat-value">${data.season_stats.games_used || data.season_stats.games_played}/${data.season_stats.games_played}</div>
+                    </div>
+            `;
+
+            // TENDANCE + R²
+            if (data.trend_analysis) {
+                html += `
+                    <div class="stat-item">
+                        <div class="stat-label">Tendance (R²=${data.trend_analysis.r_squared})</div>
+                        <div class="stat-value">${data.trend_analysis.slope > 0 ? '+' : ''}${data.trend_analysis.slope}</div>
+                        <small>${data.trend_analysis.interpretation}</small>
+                        <small>p-value: ${data.trend_analysis.p_value}</small>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+
+            // SPLITS
+            if (data.splits) {
+                html += '<div class="splits"><h3>📊 Splits</h3><div class="stat-grid">';
+                
+                if (data.splits.home) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
+                            <div class="stat-value">${data.splits.home.avg} pts</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.away) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
+                            <div class="stat-value">${data.splits.away.avg} pts</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.vs_opponent) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">vs ${data.opponent} (${data.splits.vs_opponent.games} matchs)</div>
+                            <div class="stat-value">${data.splits.vs_opponent.avg} pts</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div></div>';
+            }
+
+            // RECOMMANDATION
+            if (data.line_analysis) {
+                const rec = data.line_analysis.recommendation;
+                const recClass = rec === 'UNDER' ? 'under' : rec === 'SKIP' ? 'skip' : '';
+                
+                // Utilise le score de confiance général si bet_confidence est vide
+                const betConf = data.line_analysis.bet_confidence || 
+                                (data.confidence_score ? data.confidence_score.level : 'MEDIUM');
+                
+                html += `
+                    <div class="recommendation ${recClass}">
+                        ${rec} ${data.line_analysis.bookmaker_line}
+                        <br>
+                        <span style="font-size: 0.8em;">
+                            Probabilité: ${(data.line_analysis.over_probability * 100).toFixed(1)}% | 
+                            Edge: ${(data.line_analysis.edge * 100).toFixed(1)}% | 
+                            Confiance: ${betConf}
+                        </span>
+                    </div>
+                `;
+            }
+
+            resultDiv.innerHTML = html;
+            resultDiv.classList.add('show');
+        }
+
+        function displayError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <h3>❌ Erreur</h3>
+                    <p>${message}</p>
+                    <p style="margin-top: 15px;">
+                        Le service peut prendre 30-60 secondes à démarrer sur le plan gratuit.
+                        Réessaye dans quelques instants.
+                    </p>
+                </div>
+            `;
+            resultDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
