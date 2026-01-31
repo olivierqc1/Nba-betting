@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Betting Analyzer v4.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .prediction-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .prediction-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .recommendation {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+
+        .recommendation.over {
+            background: #10b981;
+            color: white;
+        }
+
+        .recommendation.under {
+            background: #ef4444;
+            color: white;
+        }
+
+        .recommendation.skip {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .info-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .outlier-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .outlier-item {
+            background: white;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .chi2-box {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .chi2-box.significant {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee2e2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏀 NBA Betting Analyzer v4.0</h1>
+            <p>Analyse complète Points, Assists, Rebounds</p>
+            <div class="badge">✅ Chi-carré (χ²)</div>
+            <div class="badge">✅ Outliers Detection</div>
+            <div class="badge">✅ Régression</div>
+        </div>
+
+        <div class="card">
+            <h2 style="color: #667eea; margin-bottom: 20px;">Configuration</h2>
+            
+            <div class="form-group">
+                <label>👤 Nom du joueur</label>
+                <input type="text" id="playerInput" placeholder="Ex: LeBron James">
+                <small style="color: #666;">Prénom + Nom complet</small>
+            </div>
+
+            <div class="form-group">
+                <label>🏀 Adversaire</label>
+                <select id="opponentSelect">
+                    <option value="">-- Sélectionne --</option>
+                    <option value="ATL">Atlanta Hawks</option>
+                    <option value="BOS">Boston Celtics</option>
+                    <option value="BKN">Brooklyn Nets</option>
+                    <option value="CHA">Charlotte Hornets</option>
+                    <option value="CHI">Chicago Bulls</option>
+                    <option value="CLE">Cleveland Cavaliers</option>
+                    <option value="DAL">Dallas Mavericks</option>
+                    <option value="DEN">Denver Nuggets</option>
+                    <option value="DET">Detroit Pistons</option>
+                    <option value="GSW">Golden State Warriors</option>
+                    <option value="HOU">Houston Rockets</option>
+                    <option value="IND">Indiana Pacers</option>
+                    <option value="LAC">LA Clippers</option>
+                    <option value="LAL">Los Angeles Lakers</option>
+                    <option value="MEM">Memphis Grizzlies</option>
+                    <option value="MIA">Miami Heat</option>
+                    <option value="MIL">Milwaukee Bucks</option>
+                    <option value="MIN">Minnesota Timberwolves</option>
+                    <option value="NOP">New Orleans Pelicans</option>
+                    <option value="NYK">New York Knicks</option>
+                    <option value="OKC">Oklahoma City Thunder</option>
+                    <option value="ORL">Orlando Magic</option>
+                    <option value="PHI">Philadelphia 76ers</option>
+                    <option value="PHX">Phoenix Suns</option>
+                    <option value="POR">Portland Trail Blazers</option>
+                    <option value="SAC">Sacramento Kings</option>
+                    <option value="SAS">San Antonio Spurs</option>
+                    <option value="TOR">Toronto Raptors</option>
+                    <option value="UTA">Utah Jazz</option>
+                    <option value="WAS">Washington Wizards</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>📍 Localisation</label>
+                <select id="isHomeSelect">
+                    <option value="true">🏠 Domicile</option>
+                    <option value="false">✈️ Extérieur</option>
+                </select>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="removeOutliersCheck" checked>
+                <label for="removeOutliersCheck" style="margin: 0;">🔍 Exclure les données extrêmes (outliers)</label>
+            </div>
+
+            <button class="btn" onclick="analyzeAll()">🔮 Analyser (Points + Assists + Rebounds)</button>
+        </div>
+
+        <div id="loadingDiv" class="card loading hidden">
+            <div class="spinner"></div>
+            <h3>Analyse en cours...</h3>
+            <p>Régression, Chi-carré, détection d'outliers</p>
+        </div>
+
+        <div id="resultsDiv" class="card hidden">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('points')">📊 POINTS</button>
+                <button class="tab" onclick="switchTab('assists')">🎯 ASSISTS</button>
+                <button class="tab" onclick="switchTab('rebounds')">🏀 REBOUNDS</button>
+            </div>
+
+            <div id="points-tab" class="tab-content active"></div>
+            <div id="assists-tab" class="tab-content"></div>
+            <div id="rebounds-tab" class="tab-content"></div>
+        </div>
+
+        <div id="errorDiv" class="card error hidden"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://nba-betting-1.onrender.com';
+        let currentResults = null;
+
+        function switchTab(tabName) {
+            // Switch active tab button
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Switch active content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        async function analyzeAll() {
+            const player = document.getElementById('playerInput').value.trim();
+            const opponent = document.getElementById('opponentSelect').value;
+            const isHome = document.getElementById('isHomeSelect').value === 'true';
+            const removeOutliers = document.getElementById('removeOutliersCheck').checked;
+
+            if (!player || !opponent) {
+                alert('Remplis tous les champs!');
+                return;
+            }
+
+            document.getElementById('loadingDiv').classList.remove('hidden');
+            document.getElementById('resultsDiv').classList.add('hidden');
+            document.getElementById('errorDiv').classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/api/analyze-all`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player,
+                        opponent,
+                        is_home: isHome,
+                        remove_outliers: removeOutliers,
+                        lines: {}  // Laisse le backend calculer les lignes
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'SUCCESS') {
+                    currentResults = data.analyses;
+                    displayResults(data);
+                } else {
+                    displayError(data.error || 'Erreur inconnue');
+                }
+            } catch (error) {
+                displayError('Impossible de se connecter au serveur');
+                console.error('Erreur:', error);
+            } finally {
+                document.getElementById('loadingDiv').classList.add('hidden');
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('resultsDiv').classList.remove('hidden');
+
+            // Affiche chaque stat dans son onglet
+            ['points', 'assists', 'rebounds'].forEach(stat => {
+                const analysis = data.analyses[stat];
+                const tabDiv = document.getElementById(`${stat}-tab`);
+                tabDiv.innerHTML = createStatSection(analysis, stat);
+            });
+        }
+
+        function createStatSection(data, stat) {
+            if (data.error) {
+                return `<div class="error"><h3>❌ ${data.error}</h3></div>`;
+            }
+
+            const statLabel = {
+                'points': 'Points',
+                'assists': 'Passes',
+                'rebounds': 'Rebonds'
+            }[stat];
+
+            const recClass = data.line_analysis.recommendation.toLowerCase();
+
+            let html = `
+                <div class="prediction-box">
+                    <h2>${data.player} ${data.is_home ? 'vs' : '@'} ${data.opponent}</h2>
+                    <div class="prediction-value">${data.prediction} ${statLabel.toLowerCase()}</div>
+                    <p>IC 95%: ${data.confidence_interval.lower} - ${data.confidence_interval.upper}</p>
+                    <small>${data.data_source}</small>
+                </div>
+
+                <div class="recommendation ${recClass}">
+                    ${data.line_analysis.recommendation} ${data.line_analysis.bookmaker_line}
+                    <br>
+                    <span style="font-size: 0.85em;">
+                        Prob: ${data.line_analysis.over_probability}% | 
+                        Edge: ${data.line_analysis.edge}% | 
+                        Kelly: ${data.line_analysis.kelly_criterion}%
+                    </span>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Moyenne saison</div>
+                        <div class="stat-value">${data.season_stats.weighted_avg}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Écart-type (σ)</div>
+                        <div class="stat-value">${data.season_stats.std_dev}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Matchs analysés</div>
+                        <div class="stat-value">${data.season_stats.games_used}/${data.season_stats.games_played}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">R²</div>
+                        <div class="stat-value">${data.regression_stats.r_squared}</div>
+                    </div>
+                </div>
+            `;
+
+            // Test du Chi-carré
+            const chi2 = data.chi_square_test;
+            const chi2Class = chi2.significant ? 'significant' : '';
+            html += `
+                <div class="chi2-box ${chi2Class}">
+                    <h3>📊 Test du Chi-carré (χ²)</h3>
+                    <div class="stat-grid">
+                        <div>
+                            <strong>Statistique χ²:</strong> ${chi2.chi2_statistic.toFixed(3)}
+                        </div>
+                        <div>
+                            <strong>p-value:</strong> ${chi2.p_value.toFixed(4)}
+                        </div>
+                        <div>
+                            <strong>Degrés de liberté:</strong> ${chi2.dof}
+                        </div>
+                        <div>
+                            <strong>Significatif:</strong> ${chi2.significant ? '✅ Oui' : '❌ Non'}
+                        </div>
+                    </div>
+                    <p style="margin-top: 15px; background: white; padding: 12px; border-radius: 8px;">
+                        ${chi2.interpretation}
+                    </p>
+                </div>
+            `;
+
+            // Outliers
+            if (data.outlier_analysis.outliers_detected > 0) {
+                html += `
+                    <div class="outlier-box">
+                        <h3>🔍 Analyse des Outliers</h3>
+                        <p><strong>Méthode:</strong> ${data.outlier_analysis.method}</p>
+                        <p><strong>Détectés:</strong> ${data.outlier_analysis.outliers_detected} (${data.outlier_analysis.outliers_pct}%)</p>
+                        <p><strong>Données utilisées:</strong> ${data.outlier_analysis.data_used}</p>
+                        <p style="margin-top: 10px; font-style: italic;">${data.outlier_analysis.recommendation}</p>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Outliers identifiés:</strong>
+                            ${data.outlier_analysis.outliers.map(o => `
+                                <div class="outlier-item">
+                                    <strong>${o.date}</strong> vs ${o.opponent}: 
+                                    <strong>${o[stat]} ${statLabel.toLowerCase()}</strong>
+                                    <br><small>${o.reason}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Splits
+            if (data.splits.home || data.splits.away) {
+                html += '<div class="info-section"><h3>📊 Splits</h3><div class="stat-grid">';
+                
+                if (data.splits.home) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Domicile (${data.splits.home.games} matchs)</div>
+                            <div class="stat-value">${data.splits.home.avg}</div>
+                        </div>
+                    `;
+                }
+                
+                if (data.splits.away) {
+                    html += `
+                        <div class="stat-item">
+                            <div class="stat-label">Extérieur (${data.splits.away.games} matchs)</div>
+                            <div class="stat-value">${dat
