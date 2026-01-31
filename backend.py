@@ -1,467 +1,736 @@
+#!/usr/bin/env python3
+"""
+╔═══════════════════════════════════════════════════════════════╗
+║  NBA BETTING ANALYZER - BACKEND PART 1/3                      ║
+║                                                               ║
+║  📋 INSTRUCTIONS:                                             ║
+║  1. Copie TOUT ce fichier (Ctrl+A puis Ctrl+C)               ║
+║  2. Colle dans un nouveau fichier: nba_analyzer_improved.py   ║
+║  3. NE SAUVEGARDE PAS encore!                                 ║
+║  4. Continue avec BACKEND_PART2.py                            ║
+╚═══════════════════════════════════════════════════════════════╝
+"""
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-import re
+import pandas as pd
 from scipy import stats
-import time
-from betonline_scraper import BetOnlineScraper
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error
+from datetime import datetime
+import os
+
+try:
+    from nba_api.stats.static import players, teams
+    from nba_api.stats.endpoints import playergamelog, commonteamroster, leaguegamefinder
+    NBA_API_AVAILABLE = True
+except ImportError:
+    NBA_API_AVAILABLE = False
+    print("⚠️ nba_api non disponible - Utilise données simulées")
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialiser le scraper BetOnline
-betonline = BetOnlineScraper()
-
-# Mapping des équipes NBA
-NBA_TEAMS = {
-    'ATL': 'Atlanta Hawks', 'BOS': 'Boston Celtics', 'BRK': 'Brooklyn Nets',
-    'CHO': 'Charlotte Hornets', 'CHI': 'Chicago Bulls', 'CLE': 'Cleveland Cavaliers',
-    'DAL': 'Dallas Mavericks', 'DEN': 'Denver Nuggets', 'DET': 'Detroit Pistons',
-    'GSW': 'Golden State Warriors', 'HOU': 'Houston Rockets', 'IND': 'Indiana Pacers',
-    'LAC': 'LA Clippers', 'LAL': 'Los Angeles Lakers', 'MEM': 'Memphis Grizzlies',
-    'MIA': 'Miami Heat', 'MIL': 'Milwaukee Bucks', 'MIN': 'Minnesota Timberwolves',
-    'NOP': 'New Orleans Pelicans', 'NYK': 'New York Knicks', 'OKC': 'Oklahoma City Thunder',
-    'ORL': 'Orlando Magic', 'PHI': 'Philadelphia 76ers', 'PHO': 'Phoenix Suns',
-    'POR': 'Portland Trail Blazers', 'SAC': 'Sacramento Kings', 'SAS': 'San Antonio Spurs',
-    'TOR': 'Toronto Raptors', 'UTA': 'Utah Jazz', 'WAS': 'Washington Wizards'
-}
-
-def get_player_last_games(player_name, player_id, num_games=10):
-    """Récupère les N derniers matchs d'un joueur avec poids décroissant"""
-    try:
-        url = f"https://www.basketball-reference.com/players/{player_id[0]}/{player_id}/gamelog/2025"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        table = soup.find('table', {'id': 'pgl_basic'})
-        if not table:
-            return None
-            
-        rows = table.find('tbody').find_all('tr')
-        games = []
-        
-        for row in rows[:num_games]:
-            if 'class' in row.attrs and 'thead' in row.attrs['class']:
-                continue
-                
-            try:
-                game_data = {
-                    'date': row.find('td', {'data-stat': 'date_game'}).text,
-                    'opponent': row.find('td', {'data-stat': 'opp_id'}).text,
-                    'home_away': row.find('td', {'data-stat': 'game_location'}).text,
-                    'points': float(row.find('td', {'data-stat': 'pts'}).text or 0),
-                    'rebounds': float(row.find('td', {'data-stat': 'trb'}).text or 0),
-                    'assists': float(row.find('td', {'data-stat': 'ast'}).text or 0),
-                    'minutes': float(row.find('td', {'data-stat': 'mp'}).text.split(':')[0] or 0)
-                }
-                games.append(game_data)
-            except:
-                continue
-        
-        return games[:num_games]
-    except Exception as e:
-        print(f"Erreur lors du scraping: {e}")
-        return None
-
-def calculate_weighted_prediction(games, stat_type='points'):
-    """
-    Calcule la prédiction avec poids exponentiel décroissant AMÉLIORÉ
-    Plus le match est récent, plus le poids est important
-    Decay factor de 0.75 pour donner encore PLUS de poids aux matchs récents
-    """
-    if not games or len(games) == 0:
-        return None, None
+class ImprovedNBAAnalyzer:
+    """Analyseur NBA avec support multi-stats"""
     
-    # Créer des poids exponentiels avec decay factor plus agressif
-    # Les 3 derniers matchs comptent pour ~60% du poids total
-    n = len(games)
-    weights = np.array([0.75 ** i for i in range(n)])  # Changé de 0.85 à 0.75
-    weights = weights / weights.sum()  # Normaliser pour que la somme = 1
-    
-    # Extraire les valeurs de la stat
-    values = np.array([g[stat_type] for g in games])
-    
-    # Calculer la moyenne pondérée
-    weighted_mean = np.sum(values * weights)
-    
-    # Calculer l'écart-type pondéré
-    weighted_variance = np.sum(weights * (values - weighted_mean) ** 2)
-    weighted_std = np.sqrt(weighted_variance)
-    
-    # Intervalle de confiance à 95% (1.96 * std pour distribution normale)
-    ci_margin = 1.96 * weighted_std
-    ci_lower = weighted_mean - ci_margin
-    ci_upper = weighted_mean + ci_margin
-    
-    return {
-        'prediction': round(weighted_mean, 1),
-        'std': round(weighted_std, 2),
-        'ci_lower': round(max(0, ci_lower), 1),  # Ne peut pas être négatif
-        'ci_upper': round(ci_upper, 1),
-        'recent_values': values[:5].tolist(),  # 5 dernières valeurs pour graphique
-        'weights': weights[:5].tolist()
-    }
-
-def get_opponent_defense_rating(opponent_abbr):
-    """Récupère le rating défensif de l'équipe adverse (simplifié pour démo)"""
-    # Dans une version complète, on scraperait les vraies stats défensives
-    # Pour la démo, on utilise des valeurs estimées
-    defense_ratings = {
-        'BOS': 108.5, 'MIL': 109.2, 'PHI': 110.8, 'MIA': 111.5,
-        'CLE': 109.8, 'NYK': 112.3, 'BRK': 115.6, 'ATL': 114.2,
-        'CHO': 116.8, 'CHI': 113.5, 'WAS': 118.2, 'ORL': 112.8,
-        'IND': 114.5, 'DET': 117.3, 'TOR': 115.9, 'GSW': 111.2,
-        'LAL': 112.7, 'PHO': 113.8, 'SAC': 115.1, 'LAC': 111.8,
-        'DEN': 110.5, 'MIN': 109.9, 'OKC': 108.8, 'POR': 116.5,
-        'UTA': 114.8, 'DAL': 112.4, 'MEM': 113.2, 'NOP': 115.7,
-        'SAS': 117.8, 'HOU': 114.9
-    }
-    return defense_ratings.get(opponent_abbr, 113.0)  # Moyenne de la ligue
-
-def adjust_for_opponent(prediction, opponent_abbr):
-    """Ajuste la prédiction selon la qualité défensive de l'adversaire"""
-    opp_rating = get_opponent_defense_rating(opponent_abbr)
-    league_avg = 113.0
-    
-    # Si défense faible (rating élevé), augmenter la prédiction
-    # Si défense forte (rating bas), diminuer la prédiction
-    adjustment_factor = 1 + ((opp_rating - league_avg) / league_avg) * 0.3
-    
-    adjusted_pred = prediction * adjustment_factor
-    return round(adjusted_pred, 1)
-
-def calculate_roi(prediction, ci_lower, ci_upper, line, odds):
-    """
-    Calcule le ROI attendu d'un pari
-    
-    prediction: valeur prédite
-    ci_lower/ci_upper: intervalle de confiance à 95%
-    line: ligne de pari (ex: 25.5 points)
-    odds: cote américaine (ex: -110)
-    """
-    # Convertir les cotes américaines en probabilité implicite
-    if odds < 0:
-        implied_prob = abs(odds) / (abs(odds) + 100)
-    else:
-        implied_prob = 100 / (odds + 100)
-    
-    # Calculer notre probabilité estimée que le pari passe
-    # On utilise la distance entre la prédiction et la ligne, normalisée par l'écart-type
-    std = (ci_upper - ci_lower) / (2 * 1.96)
-    z_score = (prediction - line) / std if std > 0 else 0
-    
-    # Probabilité que le joueur dépasse la ligne (distribution normale)
-    our_prob = stats.norm.cdf(z_score)
-    
-    # Si on parie "under", inverser la probabilité
-    # Pour l'instant on assume "over"
-    
-    # Calcul du ROI attendu
-    # ROI = (probabilité de gagner * gain) - (probabilité de perdre * mise)
-    if odds < 0:
-        potential_win = 100 / abs(odds)  # Pour 1$ misé
-    else:
-        potential_win = odds / 100
-    
-    expected_value = (our_prob * potential_win) - ((1 - our_prob) * 1)
-    roi_percent = expected_value * 100
-    
-    # Calculer l'edge (notre prob - leur prob)
-    edge = (our_prob - implied_prob) * 100
-    
-    return {
-        'roi': round(roi_percent, 1),
-        'our_probability': round(our_prob * 100, 1),
-        'implied_probability': round(implied_prob * 100, 1),
-        'edge': round(edge, 1),
-        'confidence': 'high' if abs(z_score) > 1.5 else 'medium' if abs(z_score) > 0.8 else 'low'
-    }
-
-@app.route('/api/players', methods=['GET'])
-def get_players():
-    """Retourne la liste des joueurs disponibles sur BetOnline avec leurs props"""
-    try:
-        # Récupérer les props depuis BetOnline
-        betonline_props = betonline.get_nba_player_props()
-        
-        # Mapping des IDs Basketball-Reference pour les joueurs populaires
-        player_ids = {
-            'LeBron James': 'jamesle01',
-            'Stephen Curry': 'curryst01',
-            'Giannis Antetokounmpo': 'antetgi01',
-            'Kevin Durant': 'duranke01',
-            'Luka Doncic': 'doncilu01',
-            'Nikola Jokic': 'jokicni01',
-            'Joel Embiid': 'embiijo01',
-            'Damian Lillard': 'lillada01',
-            'Jayson Tatum': 'tatumja01',
-            'Anthony Davis': 'davisan02',
-            'Kawhi Leonard': 'leonaka01',
-            'Jimmy Butler': 'butleji01',
-            'Devin Booker': 'bookede01',
-            'Trae Young': 'youngtr01',
-            'Donovan Mitchell': 'mitchdo01'
+    def __init__(self):
+        self.cache = {}
+        self.defensive_ratings = {
+            'ATL': 113.5, 'BOS': 108.2, 'BKN': 114.2, 'CHA': 115.8,
+            'CHI': 112.1, 'CLE': 109.5, 'DAL': 112.8, 'DEN': 109.2,
+            'DET': 115.3, 'GSW': 110.5, 'HOU': 113.8, 'IND': 114.5,
+            'LAC': 110.7, 'LAL': 112.3, 'MEM': 111.2, 'MIA': 109.8,
+            'MIL': 110.1, 'MIN': 110.4, 'NOP': 113.2, 'NYK': 109.8,
+            'OKC': 108.5, 'ORL': 110.3, 'PHI': 108.9, 'PHX': 111.4,
+            'POR': 114.8, 'SAC': 112.6, 'SAS': 115.1, 'TOR': 113.4,
+            'UTA': 114.2, 'WAS': 116.5
         }
         
-        # Enrichir les données avec les IDs BBRef
-        for player_data in betonline_props:
-            player_name = player_data['player']
-            if player_name in player_ids:
-                player_data['id'] = player_ids[player_name]
-                player_data['team'] = self._extract_team_from_matchup(player_data['matchup'])
-            else:
-                # Essayer de deviner l'ID pour les autres joueurs
-                player_data['id'] = self._generate_player_id(player_name)
-                player_data['team'] = 'N/A'
+        # Rosters des équipes NBA
+        self.team_rosters = {
+            'ATL': ['Trae Young', 'Dejounte Murray', 'Clint Capela', 'Bogdan Bogdanovic'],
+            'BOS': ['Jayson Tatum', 'Jaylen Brown', 'Kristaps Porzingis', 'Jrue Holiday', 'Derrick White'],
+            'BKN': ['Mikal Bridges', 'Cam Thomas', 'Nic Claxton', 'Spencer Dinwiddie'],
+            'CHA': ['LaMelo Ball', 'Brandon Miller', 'Miles Bridges', 'Mark Williams'],
+            'CHI': ['DeMar DeRozan', 'Zach LaVine', 'Nikola Vucevic', 'Coby White'],
+            'CLE': ['Donovan Mitchell', 'Darius Garland', 'Evan Mobley', 'Jarrett Allen'],
+            'DAL': ['Luka Doncic', 'Kyrie Irving', 'Dereck Lively II', 'Josh Green'],
+            'DEN': ['Nikola Jokic', 'Jamal Murray', 'Michael Porter Jr.', 'Aaron Gordon'],
+            'DET': ['Cade Cunningham', 'Jaden Ivey', 'Jalen Duren', 'Ausar Thompson'],
+            'GSW': ['Stephen Curry', 'Klay Thompson', 'Draymond Green', 'Andrew Wiggins', 'Jonathan Kuminga'],
+            'HOU': ['Alperen Sengun', 'Jalen Green', 'Fred VanVleet', 'Jabari Smith Jr.'],
+            'IND': ['Tyrese Haliburton', 'Pascal Siakam', 'Myles Turner', 'Bennedict Mathurin'],
+            'LAC': ['Kawhi Leonard', 'Paul George', 'James Harden', 'Russell Westbrook'],
+            'LAL': ['LeBron James', 'Anthony Davis', "D'Angelo Russell", 'Austin Reaves', 'Rui Hachimura'],
+            'MEM': ['Ja Morant', 'Desmond Bane', 'Jaren Jackson Jr.', 'Marcus Smart'],
+            'MIA': ['Jimmy Butler', 'Bam Adebayo', 'Tyler Herro', 'Duncan Robinson'],
+            'MIL': ['Giannis Antetokounmpo', 'Damian Lillard', 'Khris Middleton', 'Brook Lopez'],
+            'MIN': ['Anthony Edwards', 'Karl-Anthony Towns', 'Rudy Gobert', 'Mike Conley'],
+            'NOP': ['Zion Williamson', 'Brandon Ingram', 'CJ McCollum', 'Jonas Valanciunas'],
+            'NYK': ['Jalen Brunson', 'Julius Randle', 'RJ Barrett', 'Mitchell Robinson'],
+            'OKC': ['Shai Gilgeous-Alexander', 'Chet Holmgren', 'Josh Giddey', 'Jalen Williams'],
+            'ORL': ['Paolo Banchero', 'Franz Wagner', 'Wendell Carter Jr.', 'Jalen Suggs'],
+            'PHI': ['Joel Embiid', 'Tyrese Maxey', 'Tobias Harris', 'De\'Anthony Melton'],
+            'PHX': ['Kevin Durant', 'Devin Booker', 'Bradley Beal', 'Jusuf Nurkic'],
+            'POR': ['Damian Lillard', 'Anfernee Simons', 'Jerami Grant', 'Deandre Ayton'],
+            'SAC': ['De\'Aaron Fox', 'Domantas Sabonis', 'Keegan Murray', 'Kevin Huerter'],
+            'SAS': ['Victor Wembanyama', 'Devin Vassell', 'Keldon Johnson', 'Jeremy Sochan'],
+            'TOR': ['Scottie Barnes', 'Pascal Siakam', 'OG Anunoby', 'Jakob Poeltl'],
+            'UTA': ['Lauri Markkanen', 'Jordan Clarkson', 'Collin Sexton', 'Walker Kessler'],
+            'WAS': ['Kyle Kuzma', 'Jordan Poole', 'Tyus Jones', 'Deni Avdija']
+        }
         
-        return jsonify(betonline_props)
-    except Exception as e:
-        print(f"Erreur lors de la récupération des joueurs: {e}")
-        # Fallback sur l'ancienne méthode si BetOnline échoue
-        popular_players = [
-            {'name': 'LeBron James', 'id': 'jamesle01', 'team': 'LAL'},
-            {'name': 'Stephen Curry', 'id': 'curryst01', 'team': 'GSW'},
-            {'name': 'Giannis Antetokounmpo', 'id': 'antetgi01', 'team': 'MIL'},
-            {'name': 'Kevin Durant', 'id': 'duranke01', 'team': 'PHO'},
-            {'name': 'Luka Doncic', 'id': 'doncilu01', 'team': 'DAL'},
-            {'name': 'Nikola Jokic', 'id': 'jokicni01', 'team': 'DEN'},
-            {'name': 'Joel Embiid', 'id': 'embiijo01', 'team': 'PHI'},
-            {'name': 'Damian Lillard', 'id': 'lillada01', 'team': 'MIL'},
-            {'name': 'Jayson Tatum', 'id': 'tatumja01', 'team': 'BOS'},
-            {'name': 'Anthony Davis', 'id': 'davisan02', 'team': 'LAL'},
-        ]
-        return jsonify(popular_players)
-
-def _extract_team_from_matchup(matchup):
-    """Extrait l'équipe depuis le format 'LAL vs GSW' ou 'GSW @ LAL'"""
-    teams = re.findall(r'([A-Z]{2,3})', matchup)
-    return teams[0] if teams else 'N/A'
-
-def _generate_player_id(player_name):
-    """Génère un ID BBRef basique pour un joueur"""
-    parts = player_name.lower().split()
-    if len(parts) >= 2:
-        last = parts[-1]
-        first = parts[0]
-        return f"{last[:5]}{first[:2]}01"
-    return "unknown01"
-
-@app.route('/api/analyze', methods=['POST'])
-def analyze_player():
-    """Analyse un joueur avec les VRAIES lignes de BetOnline et retourne seulement les paris avec ROI ≥ 80%"""
-    data = request.json
-    player_name = data.get('player_name')
-    player_id = data.get('player_id')
-    opponent = data.get('opponent', 'BOS')
-    is_home = data.get('is_home', True)
-    
-    # Récupérer les 10 derniers matchs
-    games = get_player_last_games(player_name, player_id, num_games=10)
-    
-    if not games:
-        return jsonify({'error': 'Impossible de récupérer les données du joueur'}), 400
-    
-    # Récupérer les props disponibles sur BetOnline pour ce joueur
-    betonline_player_data = betonline.get_player_by_name(player_name)
-    
-    recommendations = []
-    
-    if betonline_player_data and betonline_player_data.get('props'):
-        # Utiliser les VRAIES lignes de BetOnline
-        for prop in betonline_player_data['props']:
-            stat = prop['stat_type']
-            line = prop['line']
-            over_odds = prop['over_odds']
-            under_odds = prop['under_odds']
+    def get_player_games(self, player_name, season='2024-25'):
+        """Récupère les matchs d'un joueur"""
+        if not NBA_API_AVAILABLE:
+            return self._simulate_player_games(player_name, 25)
+        
+        cache_key = f"{player_name}_{season}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        
+        try:
+            player_list = players.find_players_by_full_name(player_name)
+            if not player_list:
+                return self._simulate_player_games(player_name, 25)
             
-            # Calculer la prédiction pour cette stat
-            prediction_data = calculate_weighted_prediction(games, stat)
-            if not prediction_data:
-                continue
+            player_id = player_list[0]['id']
             
-            # Ajuster selon l'adversaire
-            adjusted_pred = adjust_for_opponent(prediction_data['prediction'], opponent)
+            import time
+            time.sleep(0.6)
             
-            # Calculer le ROI pour OVER
-            roi_over = calculate_roi(
-                adjusted_pred,
-                prediction_data['ci_lower'],
-                prediction_data['ci_upper'],
-                line,
-                over_odds
+            gamelog = playergamelog.PlayerGameLog(
+                player_id=player_id,
+                season=season,
+                season_type_all_star='Regular Season'
             )
             
-            # Calculer le ROI pour UNDER (inverser la probabilité)
-            roi_under = calculate_roi_under(
-                adjusted_pred,
-                prediction_data['ci_lower'],
-                prediction_data['ci_upper'],
-                line,
-                under_odds
+            df = gamelog.get_data_frames()[0]
+            
+            if df.empty:
+                return self._simulate_player_games(player_name, 25)
+            
+            df_clean = pd.DataFrame({
+                'date': pd.to_datetime(df['GAME_DATE']).dt.strftime('%Y-%m-%d'),
+                'opponent': df['MATCHUP'].str.split().str[-1],
+                'is_home': ~df['MATCHUP'].str.contains('@'),
+                'points': df['PTS'].astype(float),
+                'rebounds': df['REB'].astype(float),
+                'assists': df['AST'].astype(float),
+                'minutes': df['MIN'].apply(lambda x: float(str(x).split(':')[0]) if ':' in str(x) else float(x)),
+                'fg_pct': (df['FG_PCT'].astype(float) * 100).fillna(0),
+                'result': df['WL']
+            })
+            
+            df_clean['opponent_def_rating'] = df_clean['opponent'].apply(
+                lambda x: self.defensive_ratings.get(x, 112.0)
             )
             
-            # Ajouter les recommandations avec ROI ≥ 80%
-            stat_french = {
-                'points': 'Points',
-                'rebounds': 'Rebonds',
-                'assists': 'Passes',
-                'threes': '3-Points',
-                'steals': 'Interceptions',
-                'blocks': 'Contres'
-            }.get(stat, stat.capitalize())
+            df_clean['rest_days'] = 1
+            df_clean['back_to_back'] = 0
+            df_clean['team_pace'] = 100.0
             
-            if roi_over['roi'] >= 80:
-                recommendations.append({
-                    'player': player_name,
-                    'stat': stat,
-                    'stat_french': stat_french,
-                    'prediction': adjusted_pred,
-                    'ci_lower': prediction_data['ci_lower'],
-                    'ci_upper': prediction_data['ci_upper'],
-                    'line': line,
-                    'bet_type': 'OVER',
-                    'odds': over_odds,
-                    'roi': roi_over['roi'],
-                    'our_probability': roi_over['our_probability'],
-                    'implied_probability': roi_over['implied_probability'],
-                    'edge': roi_over['edge'],
-                    'confidence': roi_over['confidence'],
-                    'recent_values': prediction_data['recent_values'],
-                    'opponent': opponent,
-                    'is_home': is_home,
-                    'defense_rating': get_opponent_defense_rating(opponent),
-                    'matchup': betonline_player_data.get('matchup', ''),
-                    'source': betonline_player_data.get('source', 'BetOnline')
-                })
+            self.cache[cache_key] = df_clean
+            print(f"✅ {len(df_clean)} matchs réels pour {player_name}")
             
-            if roi_under['roi'] >= 80:
-                recommendations.append({
-                    'player': player_name,
-                    'stat': stat,
-                    'stat_french': stat_french,
-                    'prediction': adjusted_pred,
-                    'ci_lower': prediction_data['ci_lower'],
-                    'ci_upper': prediction_data['ci_upper'],
-                    'line': line,
-                    'bet_type': 'UNDER',
-                    'odds': under_odds,
-                    'roi': roi_under['roi'],
-                    'our_probability': roi_under['our_probability'],
-                    'implied_probability': roi_under['implied_probability'],
-                    'edge': roi_under['edge'],
-                    'confidence': roi_under['confidence'],
-                    'recent_values': prediction_data['recent_values'],
-                    'opponent': opponent,
-                    'is_home': is_home,
-                    'defense_rating': get_opponent_defense_rating(opponent),
-                    'matchup': betonline_player_data.get('matchup', ''),
-                    'source': betonline_player_data.get('source', 'BetOnline')
-                })
+            return df_clean
+            
+        except Exception as e:
+            print(f"❌ Erreur API: {e}")
+            return self._simulate_player_games(player_name, 25)
     
-    else:
-        # Fallback: simuler des lignes si BetOnline n'a pas de données pour ce joueur
-        for stat in ['points', 'rebounds', 'assists']:
-            prediction_data = calculate_weighted_prediction(games, stat)
-            if not prediction_data:
-                continue
+    def _simulate_player_games(self, player_name, n_games):
+        """Simule des données si API non disponible"""
+        np.random.seed(hash(player_name) % 2**32)
+        
+        base_pts = np.random.uniform(20, 28)
+        base_ast = np.random.uniform(4, 8)
+        base_reb = np.random.uniform(4, 10)
+        
+        games = []
+        for i in range(n_games):
+            game = {
+                'date': (datetime.now()).strftime('%Y-%m-%d'),
+                'opponent': np.random.choice(list(self.defensive_ratings.keys())),
+                'is_home': np.random.choice([True, False]),
+                'points': max(0, base_pts + np.random.normal(0, 5)),
+                'assists': max(0, base_ast + np.random.normal(0, 2)),
+                'rebounds': max(0, base_reb + np.random.normal(0, 3)),
+                'minutes': np.random.uniform(30, 38),
+                'fg_pct': np.random.uniform(40, 55),
+                'opponent_def_rating': np.random.uniform(108, 116),
+                'rest_days': 1,
+                'back_to_back': 0,
+                'team_pace': 100.0,
+                'result': np.random.choice(['W', 'L'])
+            }
+            games.append(game)
+        
+        return pd.DataFrame(games)
+    
+    def detect_outliers(self, values, method='iqr'):
+        """Détecte les outliers avec 3 méthodes combinées"""
+        values = np.array(values)
+        n = len(values)
+        
+        outliers_mask = np.zeros(n, dtype=bool)
+        
+        # IQR
+        Q1 = np.percentile(values, 25)
+        Q3 = np.percentile(values, 75)
+        IQR = Q3 - Q1
+        lower_iqr = Q1 - 1.5 * IQR
+        upper_iqr = Q3 + 1.5 * IQR
+        iqr_outliers = (values < lower_iqr) | (values > upper_iqr)
+        
+        # Z-score
+        mean = np.mean(values)
+        std = np.std(values)
+        z_scores = np.abs((values - mean) / std) if std > 0 else np.zeros(n)
+        zscore_outliers = z_scores > 2.5
+        
+        # MAD
+        median = np.median(values)
+        mad = np.median(np.abs(values - median))
+        modified_z_scores = 0.6745 * (values - median) / mad if mad > 0 else np.zeros(n)
+        mad_outliers = np.abs(modified_z_scores) > 3.5
+        
+        # Combine
+        if method == 'iqr':
+            outliers_mask = iqr_outliers
+        elif method == 'zscore':
+            outliers_mask = zscore_outliers
+        else:
+            outliers_mask = (iqr_outliers.astype(int) + 
+                           zscore_outliers.astype(int) + 
+                           mad_outliers.astype(int)) >= 2
+        
+        outlier_info = []
+        for i, val in enumerate(values):
+            outlier_info.append({
+                'index': int(i),
+                'value': float(val),
+                'is_outlier': bool(outliers_mask[i]),
+                'z_score': float(z_scores[i]),
+                'methods_detected': {
+                    'iqr': bool(iqr_outliers[i]),
+                    'zscore': bool(zscore_outliers[i]),
+                    'mad': bool(mad_outliers[i])
+                },
+                'severity': 'HIGH' if outliers_mask[i] and (
+                    iqr_outliers[i] and zscore_outliers[i] and mad_outliers[i]
+                ) else 'MEDIUM' if outliers_mask[i] else 'LOW'
+            })
+        
+        return outliers_mask, outlier_info
+    
+    def chi_square_test(self, observed, expected):
+        """Test du Chi-carré"""
+        bins = np.linspace(min(min(observed), min(expected)), 
+                          max(max(observed), max(expected)), 10)
+        
+        obs_freq, _ = np.histogram(observed, bins=bins)
+        exp_freq, _ = np.histogram(expected, bins=bins)
+        
+        mask = exp_freq > 0
+        obs_freq = obs_freq[mask]
+        exp_freq = exp_freq[mask]
+        
+        if len(obs_freq) == 0:
+            return {
+                'chi2_statistic': 0.0,
+                'p_value': 1.0,
+                'dof': 0,
+                'significant': False,
+                'interpretation': 'Pas assez de données'
+            }
+        
+        chi2_stat = np.sum((obs_freq - exp_freq) ** 2 / exp_freq)
+        dof = len(obs_freq) - 1
+        p_value = 1 - stats.chi2.cdf(chi2_stat, dof)
+        
+        return {
+            'chi2_statistic': float(chi2_stat),
+            'p_value': float(p_value),
+            'dof': int(dof),
+            'significant': p_value < 0.05,
+            'interpretation': (
+                'Distribution SIGNIFICATIVEMENT différente (p < 0.05)' if p_value < 0.05
+                else 'Distribution CONFORME au modèle (p >= 0.05)'
+            )
+        }
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║                    FIN PART 1/3                               ║
+# ║  ⚠️  OUVRE BACKEND_PART2.py et COPIE TOUT EN DESSOUS          ║
+# ╚═══════════════════════════════════════════════════════════════╝# ╔═══════════════════════════════════════════════════════════════╗
+# ║  NBA BETTING ANALYZER - BACKEND PART 2/3                      ║
+# ║                                                               ║
+# ║  📋 COPIE TOUT CE FICHIER ET COLLE-LE EN DESSOUS DE PART1     ║
+# ╚═══════════════════════════════════════════════════════════════╝
+
+    def analyze_stat(self, player_name, stat_type='points', opponent='LAL', 
+                    is_home=True, line=None, remove_outliers=True):
+        """Analyse complète pour UNE statistique"""
+        
+        df = self.get_player_games(player_name)
+        
+        if df.empty or len(df) < 5:
+            return {'error': f'Pas assez de données pour {player_name}'}
+        
+        stat_values = df[stat_type].values
+        outliers_mask, outlier_info = self.detect_outliers(stat_values, method='combined')
+        
+        df_full = df.copy()
+        df_clean = df[~outliers_mask].copy() if remove_outliers and np.any(outliers_mask) else df.copy()
+        
+        df_model = df_clean if remove_outliers else df_full
+        
+        if len(df_model) < 5:
+            df_model = df_full
+        
+        X = df_model[['is_home', 'opponent_def_rating', 'minutes', 
+                     'rest_days', 'back_to_back', 'team_pace']].astype(float)
+        y = df_model[stat_type].astype(float)
+        
+        model = LinearRegression()
+        model.fit(X, y)
+        
+        y_pred = model.predict(X)
+        residuals = y - y_pred
+        
+        n = len(y)
+        k = X.shape[1]
+        dof = n - k - 1
+        
+        mse = mean_squared_error(y, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y, y_pred)
+        adj_r2 = 1 - (1 - r2) * (n - 1) / dof if dof > 0 else r2
+        
+        var_residuals = np.sum(residuals**2) / dof if dof > 0 else 1
+        try:
+            var_coef = var_residuals * np.linalg.inv(X.T @ X).diagonal()
+            std_errors = np.sqrt(var_coef)
+            t_stats = model.coef_ / std_errors
+            p_values = 2 * (1 - stats.t.cdf(np.abs(t_stats), dof))
+        except:
+            std_errors = np.ones(k)
+            t_stats = np.zeros(k)
+            p_values = np.ones(k)
+        
+        chi2_test = self.chi_square_test(y.values, y_pred)
+        
+        opp_def = self.defensive_ratings.get(opponent, 112.0)
+        X_pred = np.array([[
+            1 if is_home else 0,
+            opp_def,
+            35,
+            1,
+            0,
+            100
+        ]])
+        
+        prediction = float(model.predict(X_pred)[0])
+        std_dev = float(y.std())
+        
+        z_95 = 1.96
+        ci_lower = prediction - z_95 * std_dev
+        ci_upper = prediction + z_95 * std_dev
+        
+        if line is None:
+            line = prediction - 0.5
+        
+        z_score = (prediction - line) / std_dev if std_dev > 0 else 0
+        prob_over = float(stats.norm.cdf(z_score))
+        prob_under = 1 - prob_over
+        
+        implied_prob_over = 0.5238
+        implied_prob_under = 0.5238
+        
+        edge_over = prob_over - implied_prob_over
+        edge_under = prob_under - implied_prob_under
+        
+        if edge_over > 0.05 and edge_over > abs(edge_under):
+            recommendation = 'OVER'
+            edge = edge_over
+            prob = prob_over
+        elif edge_under > 0.05:
+            recommendation = 'UNDER'
+            edge = edge_under
+            prob = prob_under
+        else:
+            recommendation = 'SKIP'
+            edge = 0
+            prob = 0.5
+        
+        if recommendation != 'SKIP':
+            decimal_odds = 1.91
+            q = 1 - prob
+            kelly = (prob * decimal_odds - q) / decimal_odds
+            kelly_pct = max(0, kelly * 0.25) * 100
+        else:
+            kelly_pct = 0
+        
+        outliers_detected = np.sum(outliers_mask)
+        outliers_list = []
+        
+        for i, is_outlier in enumerate(outliers_mask):
+            if is_outlier:
+                outliers_list.append({
+                    'date': df.iloc[i]['date'],
+                    'opponent': df.iloc[i]['opponent'],
+                    stat_type: float(df.iloc[i][stat_type]),
+                    'reason': outlier_info[i]['severity'],
+                    'methods_detected': outlier_info[i]['methods_detected']
+                })
+        
+        return {
+            'status': 'SUCCESS',
+            'player': player_name,
+            'stat_type': stat_type,
+            'opponent': opponent,
+            'is_home': is_home,
+            'data_source': 'REAL (Full Season)' if NBA_API_AVAILABLE else 'SIMULATED',
             
-            adjusted_pred = adjust_for_opponent(prediction_data['prediction'], opponent)
+            'prediction': round(prediction, 1),
+            'confidence_interval': {
+                'lower': round(max(0, ci_lower), 1),
+                'upper': round(ci_upper, 1)
+            },
             
-            # Créer plusieurs lignes autour de la prédiction
-            lines_to_check = [
-                adjusted_pred - 2.5,
-                adjusted_pred - 1.5,
-                adjusted_pred - 0.5,
-                adjusted_pred + 0.5,
-                adjusted_pred + 1.5,
-                adjusted_pred + 2.5
-            ]
+            'season_stats': {
+                'games_played': len(df),
+                'games_used': len(df_model),
+                'outliers_removed': int(outliers_detected) if remove_outliers else 0,
+                'weighted_avg': round(df[stat_type].mean(), 1),
+                'std_dev': round(std_dev, 2),
+                'min': round(df[stat_type].min(), 1),
+                'max': round(df[stat_type].max(), 1)
+            },
             
-            for line in lines_to_check:
-                odds = -110
-                roi_data = calculate_roi(
-                    adjusted_pred,
-                    prediction_data['ci_lower'],
-                    prediction_data['ci_upper'],
-                    line,
-                    odds
+            'regression_stats': {
+                'r_squared': round(r2, 4),
+                'adjusted_r_squared': round(adj_r2, 4),
+                'rmse': round(rmse, 2),
+                'sample_size': int(n),
+                'dof': int(dof)
+            },
+            
+            'chi_square_test': chi2_test,
+            
+            'line_analysis': {
+                'bookmaker_line': round(line, 1),
+                'recommendation': recommendation,
+                'over_probability': round(prob_over * 100, 1),
+                'under_probability': round(prob_under * 100, 1),
+                'edge': round(edge * 100, 1),
+                'kelly_criterion': round(kelly_pct, 1),
+                'bet_confidence': 'HIGH' if abs(edge) > 0.10 else 'MEDIUM' if abs(edge) > 0.05 else 'LOW'
+            },
+            
+            'outlier_analysis': {
+                'method': 'Combined (IQR + Z-score + MAD)',
+                'outliers_detected': int(outliers_detected),
+                'outliers_pct': round((outliers_detected / len(df)) * 100, 1),
+                'data_used': 'CLEANED' if remove_outliers and outliers_detected > 0 else 'FULL',
+                'outliers': outliers_list,
+                'recommendation': (
+                    f'{outliers_detected} outlier(s) détecté(s) et EXCLUS du modèle' 
+                    if remove_outliers and outliers_detected > 0 
+                    else f'{outliers_detected} outlier(s) détecté(s) mais INCLUS dans le modèle'
                 )
-                
-                if roi_data['roi'] >= 80:
-                    recommendations.append({
-                        'player': player_name,
-                        'stat': stat,
-                        'stat_french': {'points': 'Points', 'rebounds': 'Rebonds', 'assists': 'Passes'}[stat],
-                        'prediction': adjusted_pred,
-                        'ci_lower': prediction_data['ci_lower'],
-                        'ci_upper': prediction_data['ci_upper'],
-                        'line': round(line, 1),
-                        'bet_type': 'OVER' if adjusted_pred > line else 'UNDER',
-                        'odds': odds,
-                        'roi': roi_data['roi'],
-                        'our_probability': roi_data['our_probability'],
-                        'implied_probability': roi_data['implied_probability'],
-                        'edge': roi_data['edge'],
-                        'confidence': roi_data['confidence'],
-                        'recent_values': prediction_data['recent_values'],
-                        'opponent': opponent,
-                        'is_home': is_home,
-                        'defense_rating': get_opponent_defense_rating(opponent),
-                        'source': 'Simulé'
-                    })
-    
-    # Trier par ROI décroissant
-    recommendations.sort(key=lambda x: x['roi'], reverse=True)
-    
-    return jsonify({
-        'player': player_name,
-        'games_analyzed': len(games),
-        'recommendations': recommendations[:10],  # Top 10 recommandations
-        'total_opportunities': len(recommendations)
-    })
+            },
+            
+            'splits': {
+                'home': {
+                    'games': len(df[df['is_home'] == True]),
+                    'avg': round(df[df['is_home'] == True][stat_type].mean(), 1)
+                } if len(df[df['is_home'] == True]) > 0 else None,
+                'away': {
+                    'games': len(df[df['is_home'] == False]),
+                    'avg': round(df[df['is_home'] == False][stat_type].mean(), 1)
+                } if len(df[df['is_home'] == False]) > 0 else None,
+                'vs_opponent': {
+                    'games': len(df[df['opponent'] == opponent]),
+                    'avg': round(df[df['opponent'] == opponent][stat_type].mean(), 1)
+                } if len(df[df['opponent'] == opponent]) > 0 else None
+            },
+            
+            'trend_analysis': {
+                'slope': round(model.coef_[0], 3),
+                'r_squared': round(r2, 3),
+                'p_value': f"{'<0.001' if p_values[0] < 0.001 else round(p_values[0], 3)}",
+                'interpretation': (
+                    'Tendance à la hausse' if model.coef_[0] > 0.5 
+                    else 'Tendance à la baisse' if model.coef_[0] < -0.5 
+                    else 'Stable'
+                )
+            }
+        }
 
-def calculate_roi_under(prediction, ci_lower, ci_upper, line, odds):
-    """
-    Calcule le ROI pour un pari UNDER
-    """
-    # Convertir les cotes américaines en probabilité implicite
-    if odds < 0:
-        implied_prob = abs(odds) / (abs(odds) + 100)
-    else:
-        implied_prob = 100 / (odds + 100)
+analyzer = ImprovedNBAAnalyzer()
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║                    FIN PART 2/3                               ║
+# ║  ⚠️  OUVRE BACKEND_PART3.py et COPIE TOUT EN DESSOUS          ║
+# ╚═══════════════════════════════════════════════════════════════╝# ╔═══════════════════════════════════════════════════════════════╗
+# ║  NBA BETTING ANALYZER - BACKEND PART 3/3                      ║
+# ║                                                               ║
+# ║  📋 COPIE TOUT CE FICHIER ET COLLE-LE EN DESSOUS DE PART2     ║
+# ║  📋 PUIS SAUVEGARDE LE FICHIER!                               ║
+# ╚═══════════════════════════════════════════════════════════════╝
+
+# Import Odds API Client
+try:
+    from odds_api_client import OddsAPIClient
+    odds_client = OddsAPIClient()
+    ODDS_API_AVAILABLE = True
+except ImportError:
+    ODDS_API_AVAILABLE = False
+    odds_client = None
+    print("⚠️ odds_api_client.py non trouvé - mode manuel uniquement")
+
+def scan_daily_opportunities(min_edge=5.0, min_confidence='MEDIUM'):
+    """Scanne toutes les opportunités du jour"""
+    if not ODDS_API_AVAILABLE or not odds_client:
+        return {
+            'status': 'ERROR',
+            'message': 'Odds API non disponible',
+            'opportunities': []
+        }
     
-    # Calculer notre probabilité estimée que le pari UNDER passe
-    std = (ci_upper - ci_lower) / (2 * 1.96)
-    z_score = (prediction - line) / std if std > 0 else 0
+    print("\n" + "="*70)
+    print("🔍 SCAN DES OPPORTUNITÉS DU JOUR")
+    print("="*70)
     
-    # Probabilité que le joueur soit EN DESSOUS de la ligne
-    our_prob = 1 - stats.norm.cdf(z_score)
+    props = odds_client.get_player_props()
+    print(f"📊 {len(props)} props récupérées")
     
-    # Calcul du ROI attendu
-    if odds < 0:
-        potential_win = 100 / abs(odds)
-    else:
-        potential_win = odds / 100
+    opportunities = []
+    analyzed_count = 0
     
-    expected_value = (our_prob * potential_win) - ((1 - our_prob) * 1)
-    roi_percent = expected_value * 100
+    for prop in props:
+        player = prop['player']
+        stat_type = prop['stat_type']
+        line = prop['line']
+        bookmaker = prop['bookmaker']
+        
+        is_home = True
+        opponent = prop['away_team'] if is_home else prop['home_team']
+        
+        try:
+            result = analyzer.analyze_stat(
+                player, stat_type, opponent, is_home, line, 
+                remove_outliers=True
+            )
+            
+            analyzed_count += 1
+            
+            if result.get('status') != 'SUCCESS':
+                continue
+            
+            edge = result['line_analysis']['edge']
+            recommendation = result['line_analysis']['recommendation']
+            
+            if recommendation == 'SKIP' or edge < min_edge:
+                continue
+            
+            result['bookmaker_info'] = {
+                'bookmaker': bookmaker,
+                'line': line,
+                'over_odds': prop.get('over_odds', -110),
+                'under_odds': prop.get('under_odds', -110)
+            }
+            
+            result['odds_comparison'] = {
+                'primary': bookmaker,
+                'betonline_different': False
+            }
+            
+            opportunities.append(result)
+            
+        except Exception as e:
+            print(f"❌ Erreur {player} {stat_type}: {e}")
+            continue
     
-    # Calculer l'edge
-    edge = (our_prob - implied_prob) * 100
+    opportunities.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
+    
+    print(f"✅ {analyzed_count} props analysées")
+    print(f"🎯 {len(opportunities)} opportunités trouvées (edge ≥ {min_edge}%)")
+    print("="*70 + "\n")
     
     return {
-        'roi': round(roi_percent, 1),
-        'our_probability': round(our_prob * 100, 1),
-        'implied_probability': round(implied_prob * 100, 1),
-        'edge': round(edge, 1),
-        'confidence': 'high' if abs(z_score) > 1.5 else 'medium' if abs(z_score) > 0.8 else 'low'
+        'status': 'SUCCESS',
+        'total_props_available': len(props),
+        'total_analyzed': analyzed_count,
+        'opportunities_found': len(opportunities),
+        'scan_time': datetime.now().isoformat(),
+        'filters': {
+            'min_edge': min_edge,
+            'min_confidence': min_confidence
+        },
+        'opportunities': opportunities
     }
 
+@app.route('/api/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'OK',
+        'service': 'NBA Betting Analyzer v5.0',
+        'timestamp': datetime.now().isoformat(),
+        'nba_api': NBA_API_AVAILABLE,
+        'odds_api': ODDS_API_AVAILABLE
+    })
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze():
+    """Analyse une statistique spécifique pour un joueur"""
+    try:
+        data = request.json
+        
+        player = data.get('player')
+        stat_type = data.get('stat_type', 'points')
+        opponent = data.get('opponent', 'LAL')
+        is_home = data.get('is_home', True)
+        line = data.get('line')
+        remove_outliers = data.get('remove_outliers', True)
+        
+        if not player:
+            return jsonify({'error': 'Player name required'}), 400
+        
+        result = analyzer.analyze_stat(
+            player, stat_type, opponent, is_home, line, remove_outliers
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analyze-all', methods=['POST'])
+def analyze_all():
+    """Analyse Points + Assists + Rebounds en un appel"""
+    try:
+        data = request.json
+        
+        player = data.get('player')
+        opponent = data.get('opponent', 'LAL')
+        is_home = data.get('is_home', True)
+        remove_outliers = data.get('remove_outliers', True)
+        
+        lines = data.get('lines', {})
+        
+        if not player:
+            return jsonify({'error': 'Player name required'}), 400
+        
+        results = {}
+        for stat_type in ['points', 'assists', 'rebounds']:
+            line = lines.get(stat_type)
+            
+            result = analyzer.analyze_stat(
+                player, stat_type, opponent, is_home, line, remove_outliers
+            )
+            
+            results[stat_type] = result
+        
+        return jsonify({
+            'status': 'SUCCESS',
+            'player': player,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/teams', methods=['GET'])
+def get_teams():
+    """Récupère toutes les équipes NBA"""
+    teams_list = [
+        {'code': code, 'name': code} 
+        for code in sorted(analyzer.defensive_ratings.keys())
+    ]
+    
+    return jsonify({
+        'status': 'SUCCESS',
+        'teams': teams_list
+    })
+
+@app.route('/api/team-roster/<team_code>', methods=['GET'])
+def team_roster(team_code):
+    """Récupère le roster d'une équipe"""
+    roster = analyzer.team_rosters.get(team_code, [])
+    
+    return jsonify({
+        'status': 'SUCCESS',
+        'team': team_code,
+        'roster': [{'name': p, 'position': 'G'} for p in roster]
+    })
+
+@app.route('/api/daily-opportunities', methods=['GET'])
+def daily_opportunities():
+    """Endpoint PRINCIPAL pour morning routine"""
+    min_edge = request.args.get('min_edge', 5.0, type=float)
+    min_confidence = request.args.get('min_confidence', 'MEDIUM', type=str)
+    
+    result = scan_daily_opportunities(min_edge, min_confidence)
+    return jsonify(result)
+
+@app.route('/api/odds/usage', methods=['GET'])
+def odds_usage():
+    """Stats d'utilisation de The Odds API"""
+    if not ODDS_API_AVAILABLE or not odds_client:
+        return jsonify({'error': 'Odds API non configurée'}), 400
+    
+    stats = odds_client.get_usage_stats()
+    return jsonify(stats)
+
+@app.route('/api/odds/available-props', methods=['GET'])
+def available_props():
+    """Liste toutes les props disponibles sans analyse"""
+    if not ODDS_API_AVAILABLE or not odds_client:
+        return jsonify({'error': 'Odds API non configurée'}), 400
+    
+    props = odds_client.get_player_props()
+    
+    return jsonify({
+        'status': 'SUCCESS',
+        'total': len(props),
+        'props': props
+    })
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False') == 'True'
+    
+    print("\n" + "="*70)
+    print("🏀 NBA BETTING ANALYZER v5.0")
+    print("="*70)
+    print(f"📊 NBA API: {'✅ Disponible' if NBA_API_AVAILABLE else '❌ Non disponible (mode simulation)'}")
+    print(f"🎲 Odds API: {'✅ Disponible' if ODDS_API_AVAILABLE else '❌ Non disponible (mode manuel)'}")
+    print(f"🌐 Port: {port}")
+    print(f"🔧 Debug: {debug}")
+    print("="*70)
+    print("\n📡 Endpoints disponibles:")
+    print("   GET  /api/health")
+    print("   GET  /api/teams")
+    print("   GET  /api/team-roster/<team>")
+    print("   POST /api/analyze")
+    print("   POST /api/analyze-all")
+    print("   GET  /api/daily-opportunities  ⭐ MORNING ROUTINE")
+    print("   GET  /api/odds/usage")
+    print("   GET  /api/odds/available-props")
+    print("\n✅ Serveur démarré!\n")
+    
+    app.run(debug=debug, host='0.0.0.0', port=port)
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║                    FIN PART 3/3                               ║
+# ║  ✅ FICHIER COMPLET! SAUVEGARDE MAINTENANT                    ║
+# ╚═══════════════════════════════════════════════════════════════╝
