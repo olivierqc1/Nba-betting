@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-PART 1/2 - Copie en PREMIER
-The Odds API Client - VERSION 2 JOURS
+The Odds API Client - Récupère les player props NBA
 """
 
 import os
@@ -22,11 +20,9 @@ class OddsAPIClient:
         """Récupère les props pour X jours (1 ou 2)"""
         all_props = []
         
-        # Aujourd'hui
         today_props = self._fetch_props_for_date(datetime.now())
         all_props.extend(today_props)
         
-        # Demain
         if days >= 2:
             tomorrow = datetime.now() + timedelta(days=1)
             tomorrow_props = self._fetch_props_for_date(tomorrow)
@@ -38,7 +34,6 @@ class OddsAPIClient:
     def _fetch_props_for_date(self, date):
         """Récupère props pour une date"""
         
-        # Étape 1: Récupère les matchs
         games_url = f'{self.base_url}/sports/{self.sport}/odds'
         
         params = {
@@ -63,25 +58,22 @@ class OddsAPIClient:
             print(f"Error: {e}")
             return []
         
-        # Étape 2: Récupère player props
-        props_url = f'{self.base_url}/sports/{self.sport}/events/{games[0]["id"]}/odds'
-        
-        params = {
-            'apiKey': self.api_key,
-            'regions': 'us',
-            'markets': 'player_points,player_rebounds,player_assists',
-            'oddsFormat': 'american'
-        }
-        
         all_props = []
         
         for game in games:
             event_id = game['id']
             
+            props_params = {
+                'apiKey': self.api_key,
+                'regions': 'us',
+                'markets': 'player_points,player_rebounds,player_assists',
+                'oddsFormat': 'american'
+            }
+            
             try:
                 props_response = requests.get(
                     f'{self.base_url}/sports/{self.sport}/events/{event_id}/odds',
-                    params=params,
+                    params=props_params,
                     timeout=10
                 )
                 props_response.raise_for_status()
@@ -95,10 +87,6 @@ class OddsAPIClient:
                 continue
         
         return all_props
-
-# FIN PART 1 - Continue avec PART 2"""
-PART 2/2 - Copie APRÈS PART 1
-"""
     
     def _parse_props(self, event_data, game, date):
         """Parse les props d'un événement"""
@@ -161,28 +149,7 @@ PART 2/2 - Copie APRÈS PART 1
             return {
                 'used': requests_used,
                 'remaining': requests_remaining,
-                'total': 500
+                'total': 5000
             }
         except Exception as e:
             return {'error': str(e)}
-
-
-if __name__ == '__main__':
-    client = OddsAPIClient()
-    
-    print("\n=== TEST 2 JOURS ===\n")
-    
-    props = client.get_player_props(days=2)
-    
-    print(f"\nTotal: {len(props)}")
-    
-    if props:
-        print("\nExemple:")
-        print(f"  Joueur: {props[0]['player']}")
-        print(f"  Stat: {props[0]['stat_type']}")
-        print(f"  Ligne: {props[0]['line']}")
-        print(f"  Date: {props[0]['date']}")
-        print(f"  Match: {props[0]['away_team']} @ {props[0]['home_team']}")
-    
-    usage = client.get_usage_stats()
-    print(f"\nAPI: {usage.get('used')}/{usage.get('remaining')}")
