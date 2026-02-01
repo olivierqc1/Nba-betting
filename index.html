@@ -5,441 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>☕ NBA Morning Brief</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
             color: #333;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1100px; margin: 0 auto; }
 
         .header {
             background: white;
             border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 25px;
+            padding: 25px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             text-align: center;
         }
 
         .header h1 {
-            font-size: 2.5em;
+            font-size: 2em;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
         }
 
-        .header p {
-            color: #666;
-            font-size: 1.1em;
+        .header p { color: #666; font-size: 0.9em; margin-top: 5px; }
+        
+        .method-badge {
+            display: inline-block;
+            background: #d1fae5;
+            color: #065f46;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            margin-top: 10px;
         }
 
         .stat-tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .stat-tab {
-            flex: 1;
-            padding: 15px;
-            background: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .stat-tab:hover {
-            transform: translateY(-2px);
-        }
-
-        .stat-tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .filters {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .filter-group label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .filter-group input,
-        .filter-group select {
-            padding: 10px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1em;
-        }
-
-        .btn-scan {
-            padding: 12px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
-        }
-
-        .btn-scan:hover {
-            transform: translateY(-2px);
-        }
-
-        .stats-bar {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }
-
-        .stat-item .label {
-            font-size: 0.85em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .stat-item .value {
-            font-size: 1.6em;
-            font-weight: 700;
-            color: #667eea;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-        }
-
-        .opp-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            transition: all 0.3s;
-        }
-
-        .opp-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .opp-card.over {
-            border-top: 5px solid #10b981;
-        }
-
-        .opp-card.under {
-            border-top: 5px solid #ef4444;
-        }
-
-        .card-header {
-            padding: 20px;
-            background: #f8f9fa;
-        }
-
-        .player-name {
-            font-size: 1.3em;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 5px;
-        }
-
-        .stat-type {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .card-body {
-            padding: 20px;
-        }
-
-        .recommendation {
-            display: inline-block;
-            padding: 10px 25px;
-            border-radius: 25px;
-            font-size: 1.3em;
-            font-weight: 700;
+            gap: 8px;
             margin-bottom: 15px;
         }
 
-        .recommendation.over {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .recommendation.under {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .metrics {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .metric {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .metric-label {
-            font-size: 0.75em;
-            color: #666;
-        }
-
-        .metric-value {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .metric-value.positive {
-            color: #10b981;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 60px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #667eea;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .empty-state, .error-state {
-            text-align: center;
-            padding: 60px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .error-state {
-            background: #fee2e2;
-            border: 3px solid #fca5a5;
-            color: #991b1b;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-            }
-            .stat-tabs {
-                flex-direction: column;
-            }
-            .results-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>☕ NBA Morning Brief</h1>
-            <p>Scan par catégorie - Plus rapide!</p>
-        </div>
-
-        <div class="stat-tabs">
-            <button class="stat-tab active" onclick="selectStat('points', this)">📊 Points</button>
-            <button class="stat-tab" onclick="selectStat('assists', this)">🎯 Assists</button>
-            <button class="stat-tab" onclick="selectStat('rebounds', this)">🏀 Rebounds</button>
-        </div>
-
-        <div class="filters">
-            <div class="filter-group">
-                <label>Edge min:</label>
-                <input type="number" id="minEdge" value="5" min="0" max="20" step="1">
-                <span>%</span>
-            </div>
-
-            <div class="filter-group">
-                <label>Confiance:</label>
-                <select id="minConfidence">
-                    <option value="LOW">Toutes</option>
-                    <option value="MEDIUM" selected>Moyenne+</option>
-                    <option value="HIGH">Haute</option>
-                </select>
-            </div>
-
-            <button class="btn-scan" onclick="scanOpportunities()">
-                🔍 Scanner
-            </button>
-
-            <div style="margin-left: auto;">
-                <small id="apiUsage" style="color: #666;">API: --/--</small>
-            </div>
-        </div>
-
-        <div id="statsBar" class="stats-bar hidden">
-            <div class="stat-item">
-                <div class="label">Props</div>
-                <div class="value" id="totalProps">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Analysées</div>
-                <div class="value" id="analyzedProps">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Opportunités</div>
-                <div class="value" id="foundOpps">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Edge moy.</div>
-                <div class="value" id="avgEdge">-</div>
-            </div>
-        </div>
-
-        <div id="loadingDiv" class="loading hidden">
-            <div class="spinner"></div>
-            <h2>Scan en cours...</h2>
-            <p id="loadingText">Récupération des props...</p>
-        </div>
-
-        <div id="emptyDiv" class="empty-state hidden">
-            <h2>😕 Aucune opportunité</h2>
-            <p>Essaie de baisser l'edge minimum ou change de catégorie.</p>
-        </div>
-
-        <div id="errorDiv" class="error-state hidden"></div>
-
-        <div id="resultsDiv" class="results-grid hidden"></div>
-    </div><!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>☕ NBA Morning Brief</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 1.1em;
-        }
-
-        .stat-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
         .stat-tab {
             flex: 1;
-            padding: 15px;
+            padding: 12px;
             background: white;
             border: none;
             border-radius: 12px;
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .stat-tab:hover {
-            transform: translateY(-2px);
         }
 
         .stat-tab.active {
@@ -447,138 +68,107 @@
             color: white;
         }
 
-        .filters {
+        .controls {
             background: white;
             border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            padding: 15px;
+            margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 15px;
             align-items: center;
         }
 
         .filter-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .filter-group label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .filter-group input,
-        .filter-group select {
-            padding: 10px 15px;
+        .filter-group label { font-weight: 600; font-size: 0.85em; }
+        .filter-group input, .filter-group select {
+            padding: 8px 12px;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1em;
+            border-radius: 8px;
+            font-size: 0.9em;
         }
 
         .btn-scan {
-            padding: 12px 30px;
+            padding: 12px 25px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
-        }
+            flex-grow: 1;
+        }        .btn-scan:disabled { opacity: 0.6; cursor: wait; }
 
-        .btn-scan:hover {
-            transform: translateY(-2px);
-        }
+        .api-usage { margin-left: auto; font-size: 0.8em; color: #666; }
 
         .stats-bar {
             background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
             border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            text-align: center;
         }
 
-        .stat-item .label {
-            font-size: 0.85em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .stat-item .value {
-            font-size: 1.6em;
-            font-weight: 700;
-            color: #667eea;
-        }
+        .stat-item .label { font-size: 0.7em; color: #666; }
+        .stat-item .value { font-size: 1.1em; font-weight: 700; color: #667eea; }
 
         .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
 
         .opp-card {
             background: white;
-            border-radius: 20px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            transition: all 0.3s;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
         }
 
-        .opp-card:hover {
-            transform: translateY(-5px);
+        .opp-card.over { border-left: 5px solid #10b981; }
+        .opp-card.under { border-left: 5px solid #ef4444; }
+
+        .card-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
         }
 
-        .opp-card.over {
-            border-top: 5px solid #10b981;
-        }
-
-        .opp-card.under {
-            border-top: 5px solid #ef4444;
-        }
-
-        .card-header {
+        .card-left {
             padding: 20px;
             background: #f8f9fa;
+        }
+
+        .card-right {
+            padding: 20px;
         }
 
         .game-info {
             background: #e0f2fe;
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
             margin-bottom: 10px;
-            font-size: 0.85em;
+            font-size: 0.8em;
+            display: inline-block;
         }
 
         .player-name {
-            font-size: 1.3em;
+            font-size: 1.4em;
             font-weight: 700;
             color: #1a1a2e;
             margin-bottom: 5px;
         }
 
-        .matchup-info {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .card-body {
-            padding: 20px;
-        }
+        .stat-label { color: #666; font-size: 0.85em; }
 
         .recommendation {
             display: inline-block;
@@ -586,7 +176,7 @@
             border-radius: 25px;
             font-size: 1.3em;
             font-weight: 700;
-            margin-bottom: 15px;
+            margin: 15px 0;
         }
 
         .recommendation.over {
@@ -599,74 +189,135 @@
             color: white;
         }
 
-        .metrics {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+        .book-badge {
+            display: inline-block;
+            background: #f3f4f6;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 5px;
         }
 
-        .metric {
-            background: #f8f9fa;
-            padding: 10px;
+        .key-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .key-metric {
+            background: #f0fdf4;
+            padding: 12px;
             border-radius: 10px;
             text-align: center;
         }
 
-        .metric-label {
-            font-size: 0.75em;
-            color: #666;
+        .key-metric.highlight {
+            background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+            border: 2px solid #667eea;
         }
 
-        .metric-value {
-            font-size: 1.2em;
+        .key-metric .label { font-size: 0.7em; color: #666; }
+        .key-metric .value { font-size: 1.2em; font-weight: 700; color: #10b981; }
+        .key-metric .value.warn { color: #f59e0b; }
+
+
+
+        .deep-stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .deep-stats-title {
             font-weight: 700;
-            color: #333;
+            font-size: 0.85em;
+            color: #374151;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .metric-value.positive {
-            color: #10b981;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
         }
+
+        .stat-box {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat-box .label { font-size: 0.65em; color: #666; text-transform: uppercase; }
+        .stat-box .value { font-size: 1em; font-weight: 700; color: #1f2937; }
+        .stat-box .sub { font-size: 0.7em; color: #9ca3af; }
+
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .trend-stable { color: #6b7280; }
+
+        .hit-rate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .hit-rate .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .hit-rate .bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+        }
+
+        .hit-rate .text { font-size: 0.8em; font-weight: 600; }
 
         .confidence-badge {
             display: inline-block;
-            padding: 5px 12px;
+            padding: 4px 12px;
             border-radius: 15px;
-            font-size: 0.8em;
+            font-size: 0.75em;
             font-weight: 600;
-            margin-top: 10px;
         }
 
-        .confidence-badge.HIGH {
-            background: #d1fae5;
-            color: #065f46;
-        }
+        .confidence-badge.HIGH { background: #d1fae5; color: #065f46; }
+        .confidence-badge.MEDIUM { background: #fef3c7; color: #92400e; }
+        .confidence-badge.LOW { background: #fee2e2; color: #991b1b; }
 
-        .confidence-badge.MEDIUM {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .confidence-badge.LOW {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .loading {
+        .loading, .empty-state, .error-state {
             text-align: center;
-            padding: 60px;
+            padding: 50px;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border-radius: 16px;
         }
+
+        .error-state { background: #fee2e2; color: #991b1b; }
 
         .spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #667eea;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 15px;
         }
 
         @keyframes spin {
@@ -674,34 +325,14 @@
             100% { transform: rotate(360deg); }
         }
 
-        .empty-state, .error-state {
-            text-align: center;
-            padding: 60px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .error-state {
-            background: #fee2e2;
-            border: 3px solid #fca5a5;
-            color: #991b1b;
-        }
-
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
         @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-            }
-            .stat-tabs {
-                flex-direction: column;
-            }
-            .results-grid {
-                grid-template-columns: 1fr;
-            }
+            .card-main { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; }
+            .stat-tabs { flex-direction: column; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .key-metrics { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
@@ -709,7 +340,8 @@
     <div class="container">
         <div class="header">
             <h1>☕ NBA Morning Brief</h1>
-            <p>Sélectionne une catégorie et scanne!</p>
+            <p>Analyse approfondie: moyennes, tendances, variance, outliers</p>
+            <span class="method-badge">🔬 Hybrid: Quick Filter → Deep Analysis</span>
         </div>
 
         <div class="stat-tabs">
@@ -718,7 +350,7 @@
             <button class="stat-tab" onclick="selectStat('rebounds', this)">🏀 Rebounds</button>
         </div>
 
-        <div class="filters">
+        <div class="controls">
             <div class="filter-group">
                 <label>Edge min:</label>
                 <input type="number" id="minEdge" value="5" min="0" max="20" step="1">
@@ -734,43 +366,39 @@
                 </select>
             </div>
 
-            <button class="btn-scan" onclick="scanOpportunities()">
-                🔍 Scanner
-            </button>
+            <button class="btn-scan" id="scanBtn" onclick="scan()">🔍 Scanner</button>
 
-            <div style="margin-left: auto;">
-                <small id="apiUsage" style="color: #666;">API: --/--</small>
-            </div>
+            <span class="api-usage" id="apiUsage">API: --/--</span>
         </div>
 
         <div id="statsBar" class="stats-bar hidden">
             <div class="stat-item">
-                <div class="label">Props</div>
+                <div class="label">Props dispo</div>
                 <div class="value" id="totalProps">-</div>
             </div>
             <div class="stat-item">
-                <div class="label">Analysées</div>
-                <div class="value" id="analyzedProps">-</div>
+                <div class="label">Candidats</div>
+                <div class="value" id="candidates">-</div>
             </div>
             <div class="stat-item">
                 <div class="label">Opportunités</div>
                 <div class="value" id="foundOpps">-</div>
             </div>
             <div class="stat-item">
-                <div class="label">Edge moy.</div>
-                <div class="value" id="avgEdge">-</div>
+                <div class="label">Meilleur edge</div>
+                <div class="value" id="bestEdge">-</div>
             </div>
         </div>
 
         <div id="loadingDiv" class="loading hidden">
             <div class="spinner"></div>
-            <h2>Scan en cours...</h2>
-            <p id="loadingText">Analyse des props...</p>
+            <h3>Analyse en cours...</h3>
+            <p>1. Chargement joueurs → 2. Props → 3. Analyse profonde (~15 sec)</p>
         </div>
 
         <div id="emptyDiv" class="empty-state hidden">
-            <h2>😕 Aucune opportunité</h2>
-            <p>Essaie de baisser l'edge minimum ou change de catégorie.</p>
+            <h3>😕 Aucune opportunité trouvée</h3>
+            <p>Baisse l'edge minimum ou essaie une autre catégorie.</p>
         </div>
 
         <div id="errorDiv" class="error-state hidden"></div>
@@ -780,19 +408,25 @@
 
     <script>
         const API_URL = 'https://nba-betting-1.onrender.com';
-        
         let selectedStat = 'points';
 
         function selectStat(stat, btn) {
             selectedStat = stat;
             document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
             btn.classList.add('active');
+            
+            document.getElementById('statsBar').classList.add('hidden');
+            document.getElementById('resultsDiv').classList.add('hidden');
+            document.getElementById('emptyDiv').classList.add('hidden');
         }
 
-        async function scanOpportunities() {
+        async function scan() {
             const minEdge = document.getElementById('minEdge').value;
             const minConfidence = document.getElementById('minConfidence').value;
+            const btn = document.getElementById('scanBtn');
 
+            btn.disabled = true;
+            btn.textContent = '⏳ Analyse...';
             document.getElementById('loadingDiv').classList.remove('hidden');
             document.getElementById('statsBar').classList.add('hidden');
             document.getElementById('resultsDiv').classList.add('hidden');
@@ -804,20 +438,20 @@
                     `${API_URL}/api/daily-opportunities?min_edge=${minEdge}&min_confidence=${minConfidence}&stat_type=${selectedStat}`
                 );
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const data = await response.json();
 
                 if (data.status === 'SUCCESS') {
                     displayResults(data);
                 } else {
-                    displayError(data.message || 'Erreur inconnue');
+                    showError(data.message || 'Erreur');
                 }
             } catch (error) {
-                displayError(`Erreur: ${error.message}<br><br>Le serveur peut prendre 30-60s au premier appel.`);
+                showError(`Erreur: ${error.message}<br><br>Le serveur peut prendre 30-60s au premier appel. Réessaie!`);
             } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Scanner';
                 document.getElementById('loadingDiv').classList.add('hidden');
                 loadAPIUsage();
             }
@@ -825,16 +459,15 @@
 
         function displayResults(data) {
             document.getElementById('statsBar').classList.remove('hidden');
-            document.getElementById('totalProps').textContent = data.total_props_available || 0;
-            document.getElementById('analyzedProps').textContent = data.total_analyzed || 0;
+            document.getElementById('totalProps').textContent = data.total_props || 0;
+            document.getElementById('candidates').textContent = data.candidates_analyzed || 0;
             document.getElementById('foundOpps').textContent = data.opportunities_found || 0;
             
             if (data.opportunities_found > 0) {
-                const avgEdge = data.opportunities.reduce((sum, o) => 
-                    sum + o.line_analysis.edge, 0) / data.opportunities_found;
-                document.getElementById('avgEdge').textContent = avgEdge.toFixed(1) + '%';
+                const best = Math.max(...data.opportunities.map(o => o.line_analysis.edge));
+                document.getElementById('bestEdge').textContent = best.toFixed(1) + '%';
             } else {
-                document.getElementById('avgEdge').textContent = '-';
+                document.getElementById('bestEdge').textContent = '-';
             }
 
             if (data.opportunities_found === 0) {
@@ -843,69 +476,118 @@
             }
 
             const resultsDiv = document.getElementById('resultsDiv');
-            resultsDiv.innerHTML = data.opportunities.map(opp => createCard(opp)).join('');
+            resultsDiv.innerHTML = data.opportunities.map(createCard).join('');
             resultsDiv.classList.remove('hidden');
         }
 
         function createCard(opp) {
-            const rec = opp.line_analysis.recommendation.toLowerCase();
-            const recClass = rec === 'over' ? 'over' : 'under';
+            const la = opp.line_analysis;
+            const ds = opp.deep_stats;
+            const recClass = la.recommendation.toLowerCase();
             
-            const statLabels = {
-                'points': 'Points',
-                'assists': 'Assists',
-                'rebounds': 'Rebounds'
-            };
+            const statLabels = { 'points': 'Points', 'assists': 'Assists', 'rebounds': 'Rebounds' };
+            const game = opp.game_info || {};
+            const matchup = game.away_team && game.home_team ? `${game.away_team} @ ${game.home_team}` : '';
+            const oddsStr = la.odds > 0 ? `+${la.odds}` : la.odds;
 
-            const gameInfo = opp.game_info || {};
-            const matchup = gameInfo.away_team && gameInfo.home_team ? 
-                `${gameInfo.away_team} @ ${gameInfo.home_team}` : '';
+            const trendClass = ds.trend.includes('UP') ? 'trend-up' : (ds.trend.includes('DOWN') ? 'trend-down' : 'trend-stable');
+            
+            const hitRate = la.recommendation === 'OVER' ? la.over_probability : la.under_probability;
+            const hitCount = la.recommendation === 'OVER' ? ds.over_count : ds.under_count;
+            const totalGames = ds.games_analyzed;
 
             return `
                 <div class="opp-card ${recClass}">
-                    <div class="card-header">
-                        ${matchup ? `<div class="game-info">🏀 ${matchup}</div>` : ''}
-                        <div class="player-name">${opp.player}</div>
-                        <div class="matchup-info">${statLabels[opp.stat_type] || opp.stat_type} • ${opp.is_home ? 'Domicile' : 'Extérieur'} vs ${opp.opponent}</div>
+                    <div class="card-main">
+                        <div class="card-left">
+                            ${matchup ? `<span class="game-info">🏀 ${matchup}</span>` : ''}
+                            <div class="player-name">${opp.player}</div>
+                            <div class="stat-label">${statLabels[opp.stat_type]} • ${opp.games_played} matchs cette saison</div>
+                            
+                            <div class="recommendation ${recClass}">
+                                ${la.recommendation} ${la.bookmaker_line}
+                            </div>
+                            
+                            <div>
+                                <span class="book-badge">📚 ${la.bookmaker}</span>
+                                <span class="book-badge">${oddsStr}</span>
+                                <span class="confidence-badge ${la.bet_confidence}">${la.bet_confidence}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-right">
+                            <div class="key-metrics">
+                                <div class="key-metric highlight">
+                                    <div class="label">Edge</div>
+                                    <div class="value">+${la.edge}%</div>
+                                </div>
+                                <div class="key-metric">
+                                    <div class="label">Probabilité</div>
+                                    <div class="value">${hitRate}%</div>
+                                </div>
+                                <div class="key-metric">
+                                    <div class="label">Kelly</div>
+                                    <div class="value ${la.kelly_criterion > 5 ? '' : 'warn'}">${la.kelly_criterion}%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="hit-rate">
+                                <span class="text">${hitCount}/${totalGames}</span>
+                                <div class="bar">
+                                    <div class="fill" style="width: ${hitRate}%"></div>
+                                </div>
+                                <span class="text">${hitRate}%</span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="card-body">
-                        <div class="recommendation ${recClass}">
-                            ${opp.line_analysis.recommendation} ${opp.line_analysis.bookmaker_line}
+                    <div class="deep-stats">
+                        <div class="deep-stats-title">
+                            📊 Analyse approfondie (${ds.games_analyzed} matchs)
                         </div>
-                        
-                        <div class="metrics">
-                            <div class="metric">
-                                <div class="metric-label">Prédiction</div>
-                                <div class="metric-value">${opp.prediction}</div>
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <div class="label">Moyenne saison</div>
+                                <div class="value">${opp.season_avg}</div>
                             </div>
-                            <div class="metric">
-                                <div class="metric-label">Edge</div>
-                                <div class="metric-value positive">+${opp.line_analysis.edge}%</div>
+                            <div class="stat-box">
+                                <div class="label">Moy. nettoyée</div>
+                                <div class="value">${ds.clean_mean}</div>
+                                <div class="sub">${ds.outliers_removed} outlier(s) retiré(s)</div>
                             </div>
-                            <div class="metric">
-                                <div class="metric-label">Prob.</div>
-                                <div class="metric-value">${opp.line_analysis.recommendation === 'OVER' ? opp.line_analysis.over_probability : opp.line_analysis.under_probability}%</div>
+                            <div class="stat-box">
+                                <div class="label">Médiane</div>
+                                <div class="value">${ds.median}</div>
                             </div>
-                            <div class="metric">
-                                <div class="metric-label">Kelly</div>
-                                <div class="metric-value">${opp.line_analysis.kelly_criterion}%</div>
+                            <div class="stat-box">
+                                <div class="label">Écart-type</div>
+                                <div class="value">${ds.std}</div>
                             </div>
-                        </div>
-                        
-                        <div style="text-align: center;">
-                            <span class="confidence-badge ${opp.line_analysis.bet_confidence}">
-                                ${opp.line_analysis.bet_confidence}
-                            </span>
+                            <div class="stat-box">
+                                <div class="label">Last 5</div>
+                                <div class="value">${ds.avg_last_5}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Last 10</div>
+                                <div class="value">${ds.avg_last_10}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Tendance</div>
+                                <div class="value ${trendClass}">${ds.trend}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="label">Consistance</div>
+                                <div class="value">${ds.consistency}%</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function displayError(message) {
+        function showError(message) {
             const errorDiv = document.getElementById('errorDiv');
-            errorDiv.innerHTML = `<h2>❌ Erreur</h2><p>${message}</p>`;
+            errorDiv.innerHTML = `<h3>❌ Erreur</h3><p>${message}</p>`;
             errorDiv.classList.remove('hidden');
         }
 
@@ -913,10 +595,9 @@
             try {
                 const response = await fetch(`${API_URL}/api/odds/usage`);
                 const data = await response.json();
-                
                 if (data.used && data.remaining) {
-                    document.getElementById('apiUsage').textContent = 
-                        `API: ${data.used}/${parseInt(data.used) + parseInt(data.remaining)}`;
+                    const total = parseInt(data.used) + parseInt(data.remaining);
+                    document.getElementById('apiUsage').textContent = `API: ${data.used}/${total}`;
                 }
             } catch (e) {}
         }
