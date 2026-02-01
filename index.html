@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>☕ NBA Morning Brief - Daily Opportunities</title>
+    <title>☕ NBA Morning Brief</title>
     <style>
         * {
             margin: 0;
@@ -46,6 +46,34 @@
             font-size: 1.1em;
         }
 
+        .stat-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-tab {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-tab:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         .filters {
             background: white;
             border-radius: 15px;
@@ -77,12 +105,6 @@
             font-size: 1em;
         }
 
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
         .btn-scan {
             padding: 12px 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -98,7 +120,6 @@
 
         .btn-scan:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102,126,234,0.6);
         }
 
         .stats-bar {
@@ -108,8 +129,8 @@
             margin-bottom: 25px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
         }
 
         .stat-item {
@@ -126,54 +147,15 @@
         }
 
         .stat-item .value {
-            font-size: 1.8em;
+            font-size: 1.6em;
             font-weight: 700;
             color: #667eea;
         }
 
-        .day-tabs {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .day-tab {
-            flex: 1;
-            padding: 20px;
-            background: white;
-            border-radius: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border: 3px solid transparent;
-        }
-
-        .day-tab:hover {
-            transform: translateY(-2px);
-        }
-
-        .day-tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #fff;
-        }
-
-        .day-tab-date {
-            font-size: 1.3em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .day-tab-count {
-            font-size: 0.95em;
-            opacity: 0.8;
-        }
-
         .results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
         }
 
         .opp-card {
@@ -186,7 +168,6 @@
 
         .opp-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
         }
 
         .opp-card.over {
@@ -202,16 +183,8 @@
             background: #f8f9fa;
         }
 
-        .game-info {
-            background: #e0f2fe;
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-        }
-
         .player-name {
-            font-size: 1.4em;
+            font-size: 1.3em;
             font-weight: 700;
             color: #1a1a2e;
             margin-bottom: 5px;
@@ -219,7 +192,7 @@
 
         .stat-type {
             color: #666;
-            font-size: 0.95em;
+            font-size: 0.9em;
         }
 
         .card-body {
@@ -232,7 +205,7 @@
             border-radius: 25px;
             font-size: 1.3em;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .recommendation.over {
@@ -248,80 +221,29 @@
         .metrics {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 10px;
         }
 
         .metric {
             background: #f8f9fa;
-            padding: 12px;
+            padding: 10px;
             border-radius: 10px;
             text-align: center;
         }
 
         .metric-label {
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #666;
-            margin-bottom: 3px;
         }
 
         .metric-value {
-            font-size: 1.3em;
+            font-size: 1.2em;
             font-weight: 700;
             color: #333;
         }
 
         .metric-value.positive {
             color: #10b981;
-        }
-
-        .confidence-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .confidence-badge.HIGH {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .confidence-badge.MEDIUM {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .confidence-badge.LOW {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .details-toggle {
-            width: 100%;
-            padding: 12px;
-            background: #f0f0f0;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: background 0.3s;
-        }
-
-        .details-toggle:hover {
-            background: #e0e0e0;
-        }
-
-        .details-content {
-            display: none;
-            padding: 20px;
-            background: #f8f9fa;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .details-content.show {
-            display: block;
         }
 
         .loading {
@@ -347,7 +269,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        .empty-state {
+        .empty-state, .error-state {
             text-align: center;
             padding: 60px;
             background: white;
@@ -355,17 +277,9 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
 
-        .empty-state h2 {
-            color: #666;
-            margin-bottom: 15px;
-        }
-
         .error-state {
-            text-align: center;
-            padding: 40px;
             background: #fee2e2;
             border: 3px solid #fca5a5;
-            border-radius: 20px;
             color: #991b1b;
         }
 
@@ -377,13 +291,11 @@
             .filters {
                 flex-direction: column;
             }
-            
+            .stat-tabs {
+                flex-direction: column;
+            }
             .results-grid {
                 grid-template-columns: 1fr;
-            }
-            
-            .day-tabs {
-                flex-direction: column;
             }
         }
     </style>
@@ -392,13 +304,19 @@
     <div class="container">
         <div class="header">
             <h1>☕ NBA Morning Brief</h1>
-            <p>Scan automatique des meilleures opportunités du jour</p>
+            <p>Scan par catégorie - Plus rapide!</p>
+        </div>
+
+        <div class="stat-tabs">
+            <button class="stat-tab active" onclick="selectStat('points', this)">📊 Points</button>
+            <button class="stat-tab" onclick="selectStat('assists', this)">🎯 Assists</button>
+            <button class="stat-tab" onclick="selectStat('rebounds', this)">🏀 Rebounds</button>
         </div>
 
         <div class="filters">
             <div class="filter-group">
-                <label>Edge minimum:</label>
-                <input type="number" id="minEdge" value="5" min="0" max="20" step="0.5">
+                <label>Edge min:</label>
+                <input type="number" id="minEdge" value="5" min="0" max="20" step="1">
                 <span>%</span>
             </div>
 
@@ -407,20 +325,12 @@
                 <select id="minConfidence">
                     <option value="LOW">Toutes</option>
                     <option value="MEDIUM" selected>Moyenne+</option>
-                    <option value="HIGH">Haute uniquement</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Période:</label>
-                <select id="daysToScan">
-                    <option value="1">Aujourd'hui</option>
-                    <option value="2" selected>2 jours</option>
+                    <option value="HIGH">Haute</option>
                 </select>
             </div>
 
             <button class="btn-scan" onclick="scanOpportunities()">
-                🔍 Scanner les opportunités
+                🔍 Scanner
             </button>
 
             <div style="margin-left: auto;">
@@ -430,7 +340,7 @@
 
         <div id="statsBar" class="stats-bar hidden">
             <div class="stat-item">
-                <div class="label">Props disponibles</div>
+                <div class="label">Props</div>
                 <div class="value" id="totalProps">-</div>
             </div>
             <div class="stat-item">
@@ -442,54 +352,456 @@
                 <div class="value" id="foundOpps">-</div>
             </div>
             <div class="stat-item">
-                <div class="label">Edge moyen</div>
+                <div class="label">Edge moy.</div>
                 <div class="value" id="avgEdge">-</div>
             </div>
-            <div class="stat-item">
-                <div class="label">Scan</div>
-                <div class="value" id="scanTime">-</div>
-            </div>
         </div>
-
-        <div id="dayTabs" class="day-tabs hidden"></div>
 
         <div id="loadingDiv" class="loading hidden">
             <div class="spinner"></div>
             <h2>Scan en cours...</h2>
-            <p>Récupération des props et analyse statistique</p>
+            <p id="loadingText">Récupération des props...</p>
         </div>
 
         <div id="emptyDiv" class="empty-state hidden">
-            <h2>😕 Aucune opportunité trouvée</h2>
-            <p>Aucun pari avec edge ≥ <span id="emptyEdge">5</span>% pour le moment.</p>
-            <p style="margin-top: 15px; color: #999;">Essaie de baisser l'edge minimum ou attends que plus de props soient disponibles.</p>
+            <h2>😕 Aucune opportunité</h2>
+            <p>Essaie de baisser l'edge minimum ou change de catégorie.</p>
         </div>
 
         <div id="errorDiv" class="error-state hidden"></div>
 
         <div id="resultsDiv" class="results-grid hidden"></div>
-    </div><script>
-        // ⚠️ CHANGE CETTE URL PAR TON URL RENDER
+    </div><!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☕ NBA Morning Brief</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stat-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-tab {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-tab:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .filters {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .btn-scan {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+        }
+
+        .btn-scan:hover {
+            transform: translateY(-2px);
+        }
+
+        .stats-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .stat-item .label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-item .value {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .opp-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .opp-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .opp-card.over {
+            border-top: 5px solid #10b981;
+        }
+
+        .opp-card.under {
+            border-top: 5px solid #ef4444;
+        }
+
+        .card-header {
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .game-info {
+            background: #e0f2fe;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+        }
+
+        .player-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 5px;
+        }
+
+        .matchup-info {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .recommendation {
+            display: inline-block;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-size: 1.3em;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .recommendation.over {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .recommendation.under {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .metric-value.positive {
+            color: #10b981;
+        }
+
+        .confidence-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .confidence-badge.HIGH {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .confidence-badge.MEDIUM {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .confidence-badge.LOW {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state, .error-state {
+            text-align: center;
+            padding: 60px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .error-state {
+            background: #fee2e2;
+            border: 3px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+            .stat-tabs {
+                flex-direction: column;
+            }
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>☕ NBA Morning Brief</h1>
+            <p>Sélectionne une catégorie et scanne!</p>
+        </div>
+
+        <div class="stat-tabs">
+            <button class="stat-tab active" onclick="selectStat('points', this)">📊 Points</button>
+            <button class="stat-tab" onclick="selectStat('assists', this)">🎯 Assists</button>
+            <button class="stat-tab" onclick="selectStat('rebounds', this)">🏀 Rebounds</button>
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Edge min:</label>
+                <input type="number" id="minEdge" value="5" min="0" max="20" step="1">
+                <span>%</span>
+            </div>
+
+            <div class="filter-group">
+                <label>Confiance:</label>
+                <select id="minConfidence">
+                    <option value="LOW">Toutes</option>
+                    <option value="MEDIUM" selected>Moyenne+</option>
+                    <option value="HIGH">Haute</option>
+                </select>
+            </div>
+
+            <button class="btn-scan" onclick="scanOpportunities()">
+                🔍 Scanner
+            </button>
+
+            <div style="margin-left: auto;">
+                <small id="apiUsage" style="color: #666;">API: --/--</small>
+            </div>
+        </div>
+
+        <div id="statsBar" class="stats-bar hidden">
+            <div class="stat-item">
+                <div class="label">Props</div>
+                <div class="value" id="totalProps">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Analysées</div>
+                <div class="value" id="analyzedProps">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Opportunités</div>
+                <div class="value" id="foundOpps">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Edge moy.</div>
+                <div class="value" id="avgEdge">-</div>
+            </div>
+        </div>
+
+        <div id="loadingDiv" class="loading hidden">
+            <div class="spinner"></div>
+            <h2>Scan en cours...</h2>
+            <p id="loadingText">Analyse des props...</p>
+        </div>
+
+        <div id="emptyDiv" class="empty-state hidden">
+            <h2>😕 Aucune opportunité</h2>
+            <p>Essaie de baisser l'edge minimum ou change de catégorie.</p>
+        </div>
+
+        <div id="errorDiv" class="error-state hidden"></div>
+
+        <div id="resultsDiv" class="results-grid hidden"></div>
+    </div>
+
+    <script>
         const API_URL = 'https://nba-betting-1.onrender.com';
         
-        let currentData = null;
+        let selectedStat = 'points';
+
+        function selectStat(stat, btn) {
+            selectedStat = stat;
+            document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+        }
 
         async function scanOpportunities() {
             const minEdge = document.getElementById('minEdge').value;
             const minConfidence = document.getElementById('minConfidence').value;
-            const days = document.getElementById('daysToScan').value;
 
-            // Reset UI
             document.getElementById('loadingDiv').classList.remove('hidden');
             document.getElementById('statsBar').classList.add('hidden');
             document.getElementById('resultsDiv').classList.add('hidden');
-            document.getElementById('dayTabs').classList.add('hidden');
             document.getElementById('emptyDiv').classList.add('hidden');
             document.getElementById('errorDiv').classList.add('hidden');
 
             try {
                 const response = await fetch(
-                    `${API_URL}/api/daily-opportunities?min_edge=${minEdge}&min_confidence=${minConfidence}&days=${days}`
+                    `${API_URL}/api/daily-opportunities?min_edge=${minEdge}&min_confidence=${minConfidence}&stat_type=${selectedStat}`
                 );
 
                 if (!response.ok) {
@@ -504,7 +816,7 @@
                     displayError(data.message || 'Erreur inconnue');
                 }
             } catch (error) {
-                displayError(`Erreur de connexion: ${error.message}<br><br>Le serveur Render peut prendre 30-60s à démarrer.`);
+                displayError(`Erreur: ${error.message}<br><br>Le serveur peut prendre 30-60s au premier appel.`);
             } finally {
                 document.getElementById('loadingDiv').classList.add('hidden');
                 loadAPIUsage();
@@ -512,9 +824,6 @@
         }
 
         function displayResults(data) {
-            currentData = data;
-            
-            // Update stats bar
             document.getElementById('statsBar').classList.remove('hidden');
             document.getElementById('totalProps').textContent = data.total_props_available || 0;
             document.getElementById('analyzedProps').textContent = data.total_analyzed || 0;
@@ -528,117 +837,36 @@
                 document.getElementById('avgEdge').textContent = '-';
             }
 
-            const scanTime = new Date(data.scan_time);
-            document.getElementById('scanTime').textContent = scanTime.toLocaleTimeString('fr-FR', {
-                hour: '2-digit', minute: '2-digit'
-            });
-
             if (data.opportunities_found === 0) {
                 document.getElementById('emptyDiv').classList.remove('hidden');
-                document.getElementById('emptyEdge').textContent = data.filters.min_edge;
                 return;
             }
 
-            // Crée onglets par jour si données par date disponibles
-            const opportunitiesByDate = data.opportunities_by_date || {};
-            const dates = Object.keys(opportunitiesByDate).sort();
-            
-            if (dates.length > 1) {
-                const tabsDiv = document.getElementById('dayTabs');
-                tabsDiv.innerHTML = '';
-                
-                dates.forEach((date, index) => {
-                    const count = opportunitiesByDate[date].length;
-                    const dateObj = new Date(date + 'T12:00:00');
-                    const today = new Date();
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    
-                    let dayLabel = dateObj.toLocaleDateString('fr-FR', { 
-                        weekday: 'long', day: 'numeric', month: 'long' 
-                    });
-                    
-                    if (dateObj.toDateString() === today.toDateString()) {
-                        dayLabel = "Aujourd'hui";
-                    } else if (dateObj.toDateString() === tomorrow.toDateString()) {
-                        dayLabel = "Demain";
-                    }
-                    
-                    const tab = document.createElement('div');
-                    tab.className = `day-tab ${index === 0 ? 'active' : ''}`;
-                    tab.setAttribute('data-date', date);
-                    tab.onclick = function() { showDay(date, this); };
-                    tab.innerHTML = `
-                        <div class="day-tab-date">${dayLabel}</div>
-                        <div class="day-tab-count">${count} opportunité(s)</div>
-                    `;
-                    tabsDiv.appendChild(tab);
-                });
-                
-                tabsDiv.classList.remove('hidden');
-                showDay(dates[0], document.querySelector('.day-tab'));
-            } else if (dates.length === 1) {
-                // Un seul jour, affiche directement
-                showDay(dates[0], null);
-            } else {
-                // Fallback: affiche toutes les opportunités
-                const resultsDiv = document.getElementById('resultsDiv');
-                resultsDiv.innerHTML = data.opportunities.map(opp => createOpportunityCard(opp)).join('');
-                resultsDiv.classList.remove('hidden');
-            }
-        }
-
-        function showDay(date, tabElement) {
-            if (!currentData) return;
-            
-            // Update active tab
-            document.querySelectorAll('.day-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            if (tabElement) {
-                tabElement.classList.add('active');
-            }
-            
-            // Affiche opportunités du jour
-            const opportunities = currentData.opportunities_by_date 
-                ? (currentData.opportunities_by_date[date] || [])
-                : currentData.opportunities;
-            
             const resultsDiv = document.getElementById('resultsDiv');
-            resultsDiv.innerHTML = opportunities.map(opp => createOpportunityCard(opp)).join('');
+            resultsDiv.innerHTML = data.opportunities.map(opp => createCard(opp)).join('');
             resultsDiv.classList.remove('hidden');
         }
 
-        function createOpportunityCard(opp) {
+        function createCard(opp) {
             const rec = opp.line_analysis.recommendation.toLowerCase();
             const recClass = rec === 'over' ? 'over' : 'under';
             
-            // Game info
+            const statLabels = {
+                'points': 'Points',
+                'assists': 'Assists',
+                'rebounds': 'Rebounds'
+            };
+
             const gameInfo = opp.game_info || {};
-            const gameDate = gameInfo.date ? new Date(gameInfo.date + 'T12:00:00').toLocaleDateString('fr-FR') : '';
-            const gameTime = gameInfo.time ? new Date(gameInfo.time).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
             const matchup = gameInfo.away_team && gameInfo.home_team ? 
                 `${gameInfo.away_team} @ ${gameInfo.home_team}` : '';
-
-            const statLabel = {
-                'points': 'Points',
-                'assists': 'Assists', 
-                'rebounds': 'Rebounds'
-            }[opp.stat_type] || opp.stat_type;
-
-            const cardId = `card-${Math.random().toString(36).substr(2, 9)}`;
 
             return `
                 <div class="opp-card ${recClass}">
                     <div class="card-header">
-                        ${matchup ? `
-                            <div class="game-info">
-                                <strong>🏀 ${matchup}</strong><br>
-                                📅 ${gameDate} ${gameTime ? '• ⏰ ' + gameTime : ''}
-                            </div>
-                        ` : ''}
+                        ${matchup ? `<div class="game-info">🏀 ${matchup}</div>` : ''}
                         <div class="player-name">${opp.player}</div>
-                        <div class="stat-type">${statLabel} • ${opp.is_home ? 'Domicile' : 'Extérieur'} vs ${opp.opponent}</div>
+                        <div class="matchup-info">${statLabels[opp.stat_type] || opp.stat_type} • ${opp.is_home ? 'Domicile' : 'Extérieur'} vs ${opp.opponent}</div>
                     </div>
                     
                     <div class="card-body">
@@ -656,7 +884,7 @@
                                 <div class="metric-value positive">+${opp.line_analysis.edge}%</div>
                             </div>
                             <div class="metric">
-                                <div class="metric-label">Prob. ${opp.line_analysis.recommendation}</div>
+                                <div class="metric-label">Prob.</div>
                                 <div class="metric-value">${opp.line_analysis.recommendation === 'OVER' ? opp.line_analysis.over_probability : opp.line_analysis.under_probability}%</div>
                             </div>
                             <div class="metric">
@@ -667,31 +895,12 @@
                         
                         <div style="text-align: center;">
                             <span class="confidence-badge ${opp.line_analysis.bet_confidence}">
-                                ${opp.line_analysis.bet_confidence} CONFIDENCE
+                                ${opp.line_analysis.bet_confidence}
                             </span>
                         </div>
                     </div>
-                    
-                    <button class="details-toggle" onclick="toggleDetails('${cardId}')">
-                        📊 Voir stats détaillées ▼
-                    </button>
-                    
-                    <div id="${cardId}" class="details-content">
-                        <p><strong>σ (écart-type):</strong> ${opp.season_stats.std_dev}</p>
-                        <p><strong>R²:</strong> ${opp.regression_stats.r_squared}</p>
-                        <p><strong>Chi²:</strong> ${opp.chi_square_test.significant ? '⚠️ Significatif' : '✅ OK'} (p=${opp.chi_square_test.p_value.toFixed(3)})</p>
-                        <p><strong>Matchs analysés:</strong> ${opp.season_stats.games_used}/${opp.season_stats.games_played}</p>
-                        <p><strong>Outliers exclus:</strong> ${opp.outlier_analysis.outliers_detected}</p>
-                        <p><strong>IC 95%:</strong> [${opp.confidence_interval.lower} - ${opp.confidence_interval.upper}]</p>
-                        ${opp.bookmaker_info ? `<p><strong>Bookmaker:</strong> ${opp.bookmaker_info.bookmaker}</p>` : ''}
-                    </div>
                 </div>
             `;
-        }
-
-        function toggleDetails(cardId) {
-            const content = document.getElementById(cardId);
-            content.classList.toggle('show');
         }
 
         function displayError(message) {
@@ -709,12 +918,9 @@
                     document.getElementById('apiUsage').textContent = 
                         `API: ${data.used}/${parseInt(data.used) + parseInt(data.remaining)}`;
                 }
-            } catch (e) {
-                // Ignore
-            }
+            } catch (e) {}
         }
 
-        // Charge l'usage API au démarrage
         window.addEventListener('load', loadAPIUsage);
     </script>
 </body>
