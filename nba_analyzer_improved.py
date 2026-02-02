@@ -132,7 +132,9 @@ def get_player_props(stat_type='points'):
                 all_props.extend(player_best.values())
         except: continue
     log_debug(f"Found {len(all_props)} props")
-    return all_props, game_infodef quick_filter(props, player_stats, min_edge=2):
+    return all_props, game_info
+
+def quick_filter(props, player_stats, min_edge=2):
     candidates, stat_map = [], {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
     for prop in props:
         name_norm = normalize_name(prop['player'])
@@ -225,4 +227,4 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False) 
+    app.run(host='0.0.0.0', port=port, debug=False)
