@@ -103,7 +103,19 @@
             font-weight: 700;
             cursor: pointer;
             flex-grow: 1;
-        }        .btn-scan:disabled { opacity: 0.6; cursor: wait; }
+        }
+
+        .btn-scan:disabled { opacity: 0.6; cursor: wait; }
+        
+        .btn-debug {
+            padding: 8px 15px;
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85em;
+            cursor: pointer;
+        }
 
         .api-usage { margin-left: auto; font-size: 0.8em; color: #666; }
 
@@ -222,8 +234,6 @@
         .key-metric .value { font-size: 1.2em; font-weight: 700; color: #10b981; }
         .key-metric .value.warn { color: #f59e0b; }
 
-
-
         .deep-stats {
             background: #f8f9fa;
             padding: 15px;
@@ -235,14 +245,11 @@
             font-size: 0.85em;
             color: #374151;
             margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 10px;
         }
 
@@ -324,6 +331,29 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .debug-log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.8em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .debug-log .title {
+            color: #f59e0b;
+            margin-bottom: 10px;
+            font-weight: bold;}
+        
+        .debug-log .line {
+            margin: 3px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #374151;
+        }
 
         .hidden { display: none !important; }
 
@@ -341,7 +371,7 @@
         <div class="header">
             <h1>☕ NBA Morning Brief</h1>
             <p>Analyse approfondie: moyennes, tendances, variance, outliers</p>
-            <span class="method-badge">🔬 Hybrid: Quick Filter → Deep Analysis</span>
+            <span class="method-badge">🔬 v8.1 - Hybrid + Debug</span>
         </div>
 
         <div class="stat-tabs">
@@ -367,6 +397,8 @@
             </div>
 
             <button class="btn-scan" id="scanBtn" onclick="scan()">🔍 Scanner</button>
+            
+            <button class="btn-debug" onclick="runDebug()">🐛 Debug</button>
 
             <span class="api-usage" id="apiUsage">API: --/--</span>
         </div>
@@ -377,6 +409,10 @@
                 <div class="value" id="totalProps">-</div>
             </div>
             <div class="stat-item">
+                <div class="label">Joueurs NBA</div>
+                <div class="value" id="playersDb">-</div>
+            </div>
+            <div class="stat-item">
                 <div class="label">Candidats</div>
                 <div class="value" id="candidates">-</div>
             </div>
@@ -384,26 +420,27 @@
                 <div class="label">Opportunités</div>
                 <div class="value" id="foundOpps">-</div>
             </div>
-            <div class="stat-item">
-                <div class="label">Meilleur edge</div>
-                <div class="value" id="bestEdge">-</div>
-            </div>
         </div>
 
         <div id="loadingDiv" class="loading hidden">
             <div class="spinner"></div>
             <h3>Analyse en cours...</h3>
-            <p>1. Chargement joueurs → 2. Props → 3. Analyse profonde (~15 sec)</p>
+            <p>1. Joueurs NBA → 2. Props → 3. Analyse (~15 sec)</p>
         </div>
 
         <div id="emptyDiv" class="empty-state hidden">
             <h3>😕 Aucune opportunité trouvée</h3>
-            <p>Baisse l'edge minimum ou essaie une autre catégorie.</p>
+            <p id="emptyMsg">Baisse l'edge minimum ou essaie une autre catégorie.</p>
         </div>
 
         <div id="errorDiv" class="error-state hidden"></div>
 
         <div id="resultsDiv" class="results-grid hidden"></div>
+        
+        <div id="debugLog" class="debug-log hidden">
+            <div class="title">🐛 Debug Log</div>
+            <div id="debugContent"></div>
+        </div>
     </div>
 
     <script>
@@ -418,6 +455,7 @@
             document.getElementById('statsBar').classList.add('hidden');
             document.getElementById('resultsDiv').classList.add('hidden');
             document.getElementById('emptyDiv').classList.add('hidden');
+            document.getElementById('debugLog').classList.add('hidden');
         }
 
         async function scan() {
@@ -432,15 +470,19 @@
             document.getElementById('resultsDiv').classList.add('hidden');
             document.getElementById('emptyDiv').classList.add('hidden');
             document.getElementById('errorDiv').classList.add('hidden');
+            document.getElementById('debugLog').classList.add('hidden');
 
             try {
                 const response = await fetch(
                     `${API_URL}/api/daily-opportunities?min_edge=${minEdge}&min_confidence=${minConfidence}&stat_type=${selectedStat}`
                 );
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
                 const data = await response.json();
+                
+                // Show debug log if present
+                if (data.debug_log && data.debug_log.length > 0) {
+                    showDebugLog(data.debug_log);
+                }
 
                 if (data.status === 'SUCCESS') {
                     displayResults(data);
@@ -456,21 +498,79 @@
                 loadAPIUsage();
             }
         }
+        
+        async function runDebug() {
+            document.getElementById('loadingDiv').classList.remove('hidden');
+            document.getElementById('debugLog').classList.add('hidden');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/debug`);
+                const data = await response.json();
+                
+                let html = `<div class="line">⏰ ${data.timestamp}</div>`;
+                
+                // NBA API test
+                const nba = data.tests.nba_api;
+                html += `<div class="line">${nba.success ? '✅' : '❌'} NBA API: ${nba.players_found} joueurs</div>`;
+                if (nba.sample && nba.sample.length > 0) {
+                    html += `<div class="line">   Exemples: ${nba.sample.join(', ')}</div>`;
+                }
+                
+                // Odds API games
+                const games = data.tests.odds_api_games;
+                html += `<div class="line">${games.success ? '✅' : '❌'} Odds API Games: ${games.games_found} matchs</div>`;
+                if (games.games && games.games.length > 0) {
+                    games.games.forEach(g => {
+                        html += `<div class="line">   🏀 ${g.away} @ ${g.home}</div>`;
+                    });
+                }
+                
+                // Props
+                if (data.tests.odds_api_props) {
+                    const props = data.tests.odds_api_props;
+                    html += `<div class="line">${props.success ? '✅' : '❌'} Props: ${props.props_found} joueurs</div>`;
+                    if (props.sample_players && props.sample_players.length > 0) {
+                        html += `<div class="line">   Exemples: ${props.sample_players.join(', ')}</div>`;
+                    }
+                }
+                
+                // Full log
+                if (data.debug_log) {
+                    html += `<div class="line" style="margin-top: 10px; color: #f59e0b;">--- Full Log ---</div>`;
+                    data.debug_log.forEach(line => {
+                        html += `<div class="line">${line}</div>`;
+                    });
+                }
+                
+                document.getElementById('debugContent').innerHTML = html;
+                document.getElementById('debugLog').classList.remove('hidden');
+                
+            } catch (error) {
+                document.getElementById('debugContent').innerHTML = `<div class="line">❌ Error: ${error.message}</div>`;
+                document.getElementById('debugLog').classList.remove('hidden');
+            } finally {
+                document.getElementById('loadingDiv').classList.add('hidden');
+            }
+        }
+        
+        function showDebugLog(logs) {
+            let html = '';
+            logs.forEach(line => {
+                html += `<div class="line">${line}</div>`;
+            });
+            document.getElementById('debugContent').innerHTML = html;
+            document.getElementById('debugLog').classList.remove('hidden');
+        }
 
         function displayResults(data) {
             document.getElementById('statsBar').classList.remove('hidden');
             document.getElementById('totalProps').textContent = data.total_props || 0;
+            document.getElementById('playersDb').textContent = data.players_in_db || '?';
             document.getElementById('candidates').textContent = data.candidates_analyzed || 0;
             document.getElementById('foundOpps').textContent = data.opportunities_found || 0;
-            
-            if (data.opportunities_found > 0) {
-                const best = Math.max(...data.opportunities.map(o => o.line_analysis.edge));
-                document.getElementById('bestEdge').textContent = best.toFixed(1) + '%';
-            } else {
-                document.getElementById('bestEdge').textContent = '-';
-            }
 
             if (data.opportunities_found === 0) {
+                document.getElementById('emptyMsg').textContent = data.message || 'Baisse l\'edge minimum ou essaie une autre catégorie.';
                 document.getElementById('emptyDiv').classList.remove('hidden');
                 return;
             }
@@ -502,7 +602,7 @@
                         <div class="card-left">
                             ${matchup ? `<span class="game-info">🏀 ${matchup}</span>` : ''}
                             <div class="player-name">${opp.player}</div>
-                            <div class="stat-label">${statLabels[opp.stat_type]} • ${opp.games_played} matchs cette saison</div>
+                            <div class="stat-label">${statLabels[opp.stat_type]} • ${opp.games_played} matchs</div>
                             
                             <div class="recommendation ${recClass}">
                                 ${la.recommendation} ${la.bookmaker_line}
@@ -542,18 +642,15 @@
                     </div>
                     
                     <div class="deep-stats">
-                        <div class="deep-stats-title">
-                            📊 Analyse approfondie (${ds.games_analyzed} matchs)
-                        </div>
+                        <div class="deep-stats-title">📊 Analyse (${ds.games_analyzed} matchs)</div>
                         <div class="stats-grid">
                             <div class="stat-box">
-                                <div class="label">Moyenne saison</div>
+                                <div class="label">Moy. saison</div>
                                 <div class="value">${opp.season_avg}</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Moy. nettoyée</div>
                                 <div class="value">${ds.clean_mean}</div>
-                                <div class="sub">${ds.outliers_removed} outlier(s) retiré(s)</div>
                             </div>
                             <div class="stat-box">
                                 <div class="label">Médiane</div>
