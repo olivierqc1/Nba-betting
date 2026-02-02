@@ -1,6 +1,6 @@
 """
-NBA Betting Analyzer v8.3
-- CURRENT SEASON ONLY (2024-25) - no fallback to old data
+NBA Betting Analyzer v8.4
+- CURRENT SEASON 2025-26 (fixed from 2024-25)
 - Better NBA.com headers to avoid blocking
 - Longer timeout + retry logic
 """
@@ -96,7 +96,7 @@ def get_all_player_averages():
     """Get current season stats ONLY - no fallback to old seasons"""
     global PLAYER_ID_CACHE
     
-    season = '2024-25'  # Current season ONLY
+    season = '2025-26'  # Current season (Feb 2026)
     log_debug(f"Fetching {season} stats (current season only)...")
     
     params = {
@@ -148,7 +148,7 @@ def get_player_game_log(player_id, stat_type='points'):
     stat_map = {'points': 'PTS', 'assists': 'AST', 'rebounds': 'REB'}
     stat_col = stat_map.get(stat_type, 'PTS')
     
-    season = '2024-25'  # Current season ONLY
+    season = '2025-26'  # Current season (Feb 2026)
     params = {
         'PlayerID': player_id,
         'Season': season,
@@ -546,12 +546,12 @@ def get_usage():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'version': '8.3', 'season': '2024-25'})
+    return jsonify({'status': 'healthy', 'version': '8.4', 'season': '2025-26'})
 
 
 @app.route('/')
 def home():
-    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.3', 'season': '2024-25 only'})
+    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.4', 'season': '2025-26 only'})
 
 
 if __name__ == '__main__':
