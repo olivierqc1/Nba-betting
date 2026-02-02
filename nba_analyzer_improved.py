@@ -1,8 +1,8 @@
 """
-NBA Betting Analyzer v8.2
+NBA Betting Analyzer v8.3
+- CURRENT SEASON ONLY (2024-25) - no fallback to old data
 - Better NBA.com headers to avoid blocking
-- Longer timeout
-- Retry logic
+- Longer timeout + retry logic
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -93,87 +93,89 @@ def make_nba_request(url, params, max_retries=2):
 
 
 def get_all_player_averages():
+    """Get current season stats ONLY - no fallback to old seasons"""
     global PLAYER_ID_CACHE
     
-    for season in ['2024-25', '2023-24']:
-        log_debug(f"Trying season {season}...")
-        
-        params = {
-            'Conference': '', 'DateFrom': '', 'DateTo': '', 'Division': '',
-            'GameScope': '', 'GameSegment': '', 'Height': '', 'LastNGames': '0',
-            'LeagueID': '00', 'Location': '', 'MeasureType': 'Base', 'Month': '0',
-            'OpponentTeamID': '0', 'Outcome': '', 'PORound': '0', 'PaceAdjust': 'N',
-            'PerMode': 'PerGame', 'Period': '0', 'PlayerExperience': '',
-            'PlayerPosition': '', 'PlusMinus': 'N', 'Rank': 'N', 'Season': season,
-            'SeasonSegment': '', 'SeasonType': 'Regular Season', 'ShotClockRange': '',
-            'StarterBench': '', 'TeamID': '0', 'TwoWay': '0', 'VsConference': '',
-            'VsDivision': '', 'Weight': ''
-        }
-        
-        data = make_nba_request(NBA_STATS_URL, params)
-        
-        if data and 'resultSets' in data:
-            headers = data['resultSets'][0]['headers']
-            rows = data['resultSets'][0]['rowSet']
-            
-            if not rows:
-                log_debug(f"No rows for {season}")
-                continue
-            
-            players = {}
-            for row in rows:
-                name = row[headers.index('PLAYER_NAME')]
-                pid = row[headers.index('PLAYER_ID')]
-                PLAYER_ID_CACHE[normalize_name(name)] = pid
-                players[normalize_name(name)] = {
-                    'id': pid,
-                    'name': name,
-                    'pts': row[headers.index('PTS')],
-                    'ast': row[headers.index('AST')],
-                    'reb': row[headers.index('REB')],
-                    'gp': row[headers.index('GP')],
-                    'min': row[headers.index('MIN')]
-                }
-            
-            log_debug(f"SUCCESS: Loaded {len(players)} players from {season}")
-            return players
+    season = '2024-25'  # Current season ONLY
+    log_debug(f"Fetching {season} stats (current season only)...")
     
-    log_debug("FAILED: Could not load player data from NBA API")
+    params = {
+        'Conference': '', 'DateFrom': '', 'DateTo': '', 'Division': '',
+        'GameScope': '', 'GameSegment': '', 'Height': '', 'LastNGames': '0',
+        'LeagueID': '00', 'Location': '', 'MeasureType': 'Base', 'Month': '0',
+        'OpponentTeamID': '0', 'Outcome': '', 'PORound': '0', 'PaceAdjust': 'N',
+        'PerMode': 'PerGame', 'Period': '0', 'PlayerExperience': '',
+        'PlayerPosition': '', 'PlusMinus': 'N', 'Rank': 'N', 'Season': season,
+        'SeasonSegment': '', 'SeasonType': 'Regular Season', 'ShotClockRange': '',
+        'StarterBench': '', 'TeamID': '0', 'TwoWay': '0', 'VsConference': '',
+        'VsDivision': '', 'Weight': ''
+    }
+    
+    data = make_nba_request(NBA_STATS_URL, params)
+    
+    if data and 'resultSets' in data:
+        headers = data['resultSets'][0]['headers']
+        rows = data['resultSets'][0]['rowSet']
+        
+        if not rows:
+            log_debug(f"No data for {season}")
+            return {}
+        
+        players = {}
+        for row in rows:
+            name = row[headers.index('PLAYER_NAME')]
+            pid = row[headers.index('PLAYER_ID')]
+            PLAYER_ID_CACHE[normalize_name(name)] = pid
+            players[normalize_name(name)] = {
+                'id': pid,
+                'name': name,
+                'pts': row[headers.index('PTS')],
+                'ast': row[headers.index('AST')],
+                'reb': row[headers.index('REB')],
+                'gp': row[headers.index('GP')],
+                'min': row[headers.index('MIN')]
+            }
+        
+        log_debug(f"SUCCESS: {len(players)} players from {season}")
+        return players
+    
+    log_debug("FAILED: NBA API blocked or unavailable")
     return {}
 
 
 def get_player_game_log(player_id, stat_type='points'):
+    """Get player game log for CURRENT season only"""
     stat_map = {'points': 'PTS', 'assists': 'AST', 'rebounds': 'REB'}
     stat_col = stat_map.get(stat_type, 'PTS')
     
-    for season in ['2024-25', '2023-24']:
-        params = {
-            'PlayerID': player_id,
-            'Season': season,
-            'SeasonType': 'Regular Season',
-            'LeagueID': '00'
-        }
+    season = '2024-25'  # Current season ONLY
+    params = {
+        'PlayerID': player_id,
+        'Season': season,
+        'SeasonType': 'Regular Season',
+        'LeagueID': '00'
+    }
+    
+    data = make_nba_request(NBA_GAME_LOG_URL, params, max_retries=1)
+    
+    if data and 'resultSets' in data:
+        h = data['resultSets'][0]['headers']
+        rows = data['resultSets'][0]['rowSet']
         
-        data = make_nba_request(NBA_GAME_LOG_URL, params, max_retries=1)
+        if not rows:
+            return None
         
-        if data and 'resultSets' in data:
-            h = data['resultSets'][0]['headers']
-            rows = data['resultSets'][0]['rowSet']
-            
-            if not rows:
-                continue
-            
-            games = []
-            for row in rows:
-                mins = row[h.index('MIN')]
-                if isinstance(mins, str) and ':' in mins:
-                    mins = int(mins.split(':')[0]) + int(mins.split(':')[1])/60
-                games.append({
-                    'stat': row[h.index(stat_col)],
-                    'minutes': float(mins) if mins else 0
-                })
-            
-            return games
+        games = []
+        for row in rows:
+            mins = row[h.index('MIN')]
+            if isinstance(mins, str) and ':' in mins:
+                mins = int(mins.split(':')[0]) + int(mins.split(':')[1])/60
+            games.append({
+                'stat': row[h.index(stat_col)],
+                'minutes': float(mins) if mins else 0
+            })
+        
+        return games
     
     return None
 
@@ -544,12 +546,12 @@ def get_usage():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'version': '8.2'})
+    return jsonify({'status': 'healthy', 'version': '8.3', 'season': '2024-25'})
 
 
 @app.route('/')
 def home():
-    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.2'})
+    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.3', 'season': '2024-25 only'})
 
 
 if __name__ == '__main__':
