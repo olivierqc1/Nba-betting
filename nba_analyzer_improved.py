@@ -1,8 +1,8 @@
 """
-NBA Betting Analyzer v8.4
-- CURRENT SEASON 2025-26 (fixed from 2024-25)
-- Better NBA.com headers to avoid blocking
-- Longer timeout + retry logic
+NBA Betting Analyzer v8.5
+- Uses balldontlie.io API (no cloud IP blocking!)
+- Requires free API key from https://api.balldontlie.io
+- Season 2024-25 data (balldontlie format)
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -12,32 +12,16 @@ import os
 import numpy as np
 from scipy import stats as scipy_stats
 import time
-import random
 
 app = Flask(__name__)
 CORS(app)
 
+# API Keys
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY')
-ODDS_BASE_URL = "https://api.the-odds-api.com/v4"
-NBA_STATS_URL = "https://stats.nba.com/stats/leaguedashplayerstats"
-NBA_GAME_LOG_URL = "https://stats.nba.com/stats/playergamelog"
+BALLDONTLIE_API_KEY = os.environ.get('BALLDONTLIE_API_KEY', '')
 
-# Enhanced headers to avoid NBA.com blocking
-NBA_HEADERS = {
-    'Host': 'stats.nba.com',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Referer': 'https://www.nba.com/',
-    'Origin': 'https://www.nba.com',
-    'Sec-Fetch-Dest': 'empty',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'same-site',
-    'x-nba-stats-origin': 'stats',
-    'x-nba-stats-token': 'true'
-}
+ODDS_BASE_URL = "https://api.the-odds-api.com/v4"
+BDL_BASE_URL = "https://api.balldontlie.io/v1"
 
 PLAYER_ID_CACHE = {}
 DEBUG_LOG = []
@@ -58,129 +42,119 @@ def normalize_name(name):
     return name.strip()
 
 
-def make_nba_request(url, params, max_retries=2):
-    """Make request to NBA API with retry logic"""
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                wait = 2 + random.random() * 2
-                log_debug(f"Retry {attempt+1}, waiting {wait:.1f}s...")
-                time.sleep(wait)
+def bdl_request(endpoint, params=None):
+    """Make request to balldontlie API"""
+    headers = {}
+    if BALLDONTLIE_API_KEY:
+        headers['Authorization'] = BALLDONTLIE_API_KEY
+    
+    try:
+        url = f"{BDL_BASE_URL}/{endpoint}"
+        response = requests.get(url, headers=headers, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 401:
+            log_debug("BDL API: Missing or invalid API key")
+        elif response.status_code == 429:
+            log_debug("BDL API: Rate limited, waiting...")
+            time.sleep(2)
+        else:
+            log_debug(f"BDL API error: {response.status_code}")
             
-            response = requests.get(
-                url, 
-                headers=NBA_HEADERS, 
-                params=params, 
-                timeout=25
-            )
-            
-            log_debug(f"NBA API response: {response.status_code}")
-            
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 403:
-                log_debug("403 Forbidden - NBA blocking request")
-            elif response.status_code == 429:
-                log_debug("429 Rate limited")
-                time.sleep(5)
-                
-        except requests.exceptions.Timeout:
-            log_debug(f"Timeout on attempt {attempt+1}")
-        except Exception as e:
-            log_debug(f"Error: {str(e)[:50]}")
+    except Exception as e:
+        log_debug(f"BDL request error: {str(e)[:50]}")
     
     return None
 
 
-def get_all_player_averages():
-    """Get current season stats ONLY - no fallback to old seasons"""
-    global PLAYER_ID_CACHE
+def search_player(name):
+    """Search for a player by name in balldontlie"""
+    norm_name = normalize_name(name)
+    if norm_name in PLAYER_ID_CACHE:
+        return PLAYER_ID_CACHE[norm_name]
     
-    season = '2025-26'  # Current season (Feb 2026)
-    log_debug(f"Fetching {season} stats (current season only)...")
+    search_term = name.split()[-1] if ' ' in name else name
     
-    params = {
-        'Conference': '', 'DateFrom': '', 'DateTo': '', 'Division': '',
-        'GameScope': '', 'GameSegment': '', 'Height': '', 'LastNGames': '0',
-        'LeagueID': '00', 'Location': '', 'MeasureType': 'Base', 'Month': '0',
-        'OpponentTeamID': '0', 'Outcome': '', 'PORound': '0', 'PaceAdjust': 'N',
-        'PerMode': 'PerGame', 'Period': '0', 'PlayerExperience': '',
-        'PlayerPosition': '', 'PlusMinus': 'N', 'Rank': 'N', 'Season': season,
-        'SeasonSegment': '', 'SeasonType': 'Regular Season', 'ShotClockRange': '',
-        'StarterBench': '', 'TeamID': '0', 'TwoWay': '0', 'VsConference': '',
-        'VsDivision': '', 'Weight': ''
-    }
+    data = bdl_request("players", {"search": search_term, "per_page": 25})
     
-    data = make_nba_request(NBA_STATS_URL, params)
-    
-    if data and 'resultSets' in data:
-        headers = data['resultSets'][0]['headers']
-        rows = data['resultSets'][0]['rowSet']
-        
-        if not rows:
-            log_debug(f"No data for {season}")
-            return {}
-        
-        players = {}
-        for row in rows:
-            name = row[headers.index('PLAYER_NAME')]
-            pid = row[headers.index('PLAYER_ID')]
-            PLAYER_ID_CACHE[normalize_name(name)] = pid
-            players[normalize_name(name)] = {
-                'id': pid,
-                'name': name,
-                'pts': row[headers.index('PTS')],
-                'ast': row[headers.index('AST')],
-                'reb': row[headers.index('REB')],
-                'gp': row[headers.index('GP')],
-                'min': row[headers.index('MIN')]
+    if data and 'data' in data:
+        for player in data['data']:
+            full_name = f"{player['first_name']} {player['last_name']}"
+            p_norm = normalize_name(full_name)
+            PLAYER_ID_CACHE[p_norm] = {
+                'id': player['id'],
+                'name': full_name,
+                'team': player.get('team', {}).get('abbreviation', 'N/A')
             }
-        
-        log_debug(f"SUCCESS: {len(players)} players from {season}")
-        return players
+            
+            if p_norm == norm_name or norm_name in p_norm or p_norm in norm_name:
+                log_debug(f"Found player: {full_name} (ID: {player['id']})")
+                return PLAYER_ID_CACHE[p_norm]
     
-    log_debug("FAILED: NBA API blocked or unavailable")
-    return {}
+    return None
+
+
+def get_player_season_avg(player_id):
+    """Get season averages for a player"""
+    data = bdl_request("season_averages", {
+        "season": 2024,
+        "player_ids[]": player_id
+    })
+    
+    if data and 'data' in data and len(data['data']) > 0:
+        stats = data['data'][0]
+        return {
+            'pts': stats.get('pts', 0),
+            'ast': stats.get('ast', 0),
+            'reb': stats.get('reb', 0),
+            'gp': stats.get('games_played', 0),
+            'min': stats.get('min', '0')
+        }
+    
+    return None
 
 
 def get_player_game_log(player_id, stat_type='points'):
-    """Get player game log for CURRENT season only"""
-    stat_map = {'points': 'PTS', 'assists': 'AST', 'rebounds': 'REB'}
-    stat_col = stat_map.get(stat_type, 'PTS')
+    """Get recent games for a player"""
+    stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
+    stat_col = stat_map.get(stat_type, 'pts')
     
-    season = '2025-26'  # Current season (Feb 2026)
-    params = {
-        'PlayerID': player_id,
-        'Season': season,
-        'SeasonType': 'Regular Season',
-        'LeagueID': '00'
-    }
+    data = bdl_request("stats", {
+        "player_ids[]": player_id,
+        "seasons[]": 2024,
+        "per_page": 30
+    })
     
-    data = make_nba_request(NBA_GAME_LOG_URL, params, max_retries=1)
+    if not data or 'data' not in data:
+        return None
     
-    if data and 'resultSets' in data:
-        h = data['resultSets'][0]['headers']
-        rows = data['resultSets'][0]['rowSet']
+    games = []
+    for game in data['data']:
+        stat_val = game.get(stat_col, 0)
+        mins = game.get('min', '0')
         
-        if not rows:
-            return None
+        if isinstance(mins, str) and ':' in mins:
+            parts = mins.split(':')
+            mins = int(parts[0]) + int(parts[1])/60
+        elif isinstance(mins, str):
+            mins = float(mins) if mins else 0
         
-        games = []
-        for row in rows:
-            mins = row[h.index('MIN')]
-            if isinstance(mins, str) and ':' in mins:
-                mins = int(mins.split(':')[0]) + int(mins.split(':')[1])/60
+        if stat_val is not None:
             games.append({
-                'stat': row[h.index(stat_col)],
-                'minutes': float(mins) if mins else 0
+                'stat': float(stat_val),
+                'minutes': float(mins) if mins else 0,
+                'date': game.get('game', {}).get('date', '')
             })
-        
-        return games
     
-    return None
+    games.sort(key=lambda x: x['date'], reverse=True)
+    
+    log_debug(f"Got {len(games)} games for player {player_id}")
+    return games if games else None
 
 
 def analyze_game_log(games, line):
+    """Analyze game log and return stats"""
     if not games or len(games) < 5:
         return None
     
@@ -230,6 +204,7 @@ def analyze_game_log(games, line):
 
 
 def get_nba_games():
+    """Get NBA games from Odds API"""
     try:
         params = {
             'apiKey': ODDS_API_KEY,
@@ -248,6 +223,7 @@ def get_nba_games():
 
 
 def get_player_props(stat_type='points'):
+    """Get player props from Odds API"""
     games = get_nba_games()
     if not games:
         return [], {}
@@ -316,29 +292,44 @@ def get_player_props(stat_type='points'):
     return all_props, game_info
 
 
-def quick_filter(props, player_stats, min_edge=2):
-    candidates = []
-    stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
+def analyze_player_prop(player_name, stat_type, line):
+    """Analyze a single player prop using balldontlie data"""
     
-    for prop in props:
-        name_norm = normalize_name(prop['player'])
-        pd = player_stats.get(name_norm)
-        
-        if not pd:
-            for k, v in player_stats.items():
-                if name_norm.split()[-1] == k.split()[-1]:
-                    pd = v
-                    break
-        
-        if not pd:
-            continue
-        
-        avg = pd.get(stat_map.get(prop['stat_type'], 'pts'), 0)
-        gp = pd.get('gp', 0)
-        pid = pd.get('id')
-        
-        if not avg or gp < 5 or not pid:
-            continue
+    player_info = search_player(player_name)
+    if not player_info:
+        log_debug(f"Player not found: {player_name}")
+        return None
+    
+    player_id = player_info['id']
+    
+    games = get_player_game_log(player_id, stat_type)
+    if not games:
+        log_debug(f"No games found for {player_name}")
+        return None
+    
+    season_avg = get_player_season_avg(player_id)
+    
+    analysis = analyze_game_log(games, line)
+    if not analysis:
+        return None
+    
+    stat_key = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}.get(stat_type, 'pts')
+    
+    return {
+        'player_id': player_id,
+        'player_name': player_info['name'],
+        'season_avg': season_avg.get(stat_key, 0) if season_avg else analysis['mean'],
+        'games_played': season_avg.get('gp', len(games)) if season_avg else len(games),
+        'analysis': analysis
+    }
+
+
+def deep_analyze_props(props, game_info, stat_type, min_edge=5):
+    """Deep analyze props using balldontlie data"""
+    opps = []
+    
+    for prop in props[:20]:
+        player_name = prop['player']
         
         overs = [l for l in prop['lines'] if l['type'] == 'Over']
         unders = [l for l in prop['lines'] if l['type'] == 'Under']
@@ -346,47 +337,23 @@ def quick_filter(props, player_stats, min_edge=2):
         if not overs:
             continue
         
-        bo = min(overs, key=lambda x: x['line'])
-        bu = max(unders, key=lambda x: x['line']) if unders else None
+        best_over = min(overs, key=lambda x: x['line'])
+        best_under = max(unders, key=lambda x: x['line']) if unders else None
+        line = best_over['line']
         
-        oe = ((avg - bo['line']) / bo['line']) * 100
-        ue = ((bu['line'] - avg) / bu['line']) * 100 if bu else 0
-        
-        if oe >= min_edge or ue >= min_edge:
-            candidates.append({
-                'prop': prop,
-                'player_id': pid,
-                'season_avg': avg,
-                'games_played': gp,
-                'best_over': bo,
-                'best_under': bu,
-                'over_edge': oe,
-                'under_edge': ue
-            })
-    
-    candidates.sort(key=lambda x: max(x['over_edge'], x['under_edge']), reverse=True)
-    return candidates[:15]
-
-
-def deep_analyze(candidates, game_info, min_edge=5):
-    opps = []
-    
-    for c in candidates:
-        games = get_player_game_log(c['player_id'], c['prop']['stat_type'])
-        if not games:
+        result = analyze_player_prop(player_name, stat_type, line)
+        if not result:
             continue
         
-        a = analyze_game_log(games, c['best_over']['line'])
-        if not a:
-            continue
+        a = result['analysis']
         
-        oe = ((a['clean_mean'] - c['best_over']['line']) / c['best_over']['line']) * 100
-        ue = ((c['best_under']['line'] - a['clean_mean']) / c['best_under']['line']) * 100 if c['best_under'] else 0
+        oe = ((a['clean_mean'] - line) / line) * 100
+        ue = ((line - a['clean_mean']) / line) * 100 if best_under else 0
         
         if a['over_probability'] > 52 and oe >= min_edge:
-            rec, edge, bl = 'OVER', oe, c['best_over']
+            rec, edge, bl = 'OVER', oe, best_over
         elif a['under_probability'] > 52 and ue >= min_edge:
-            rec, edge, bl = 'UNDER', ue, c['best_under']
+            rec, edge, bl = 'UNDER', ue, best_under
         else:
             continue
         
@@ -395,15 +362,15 @@ def deep_analyze(candidates, game_info, min_edge=5):
         sc += 2 if a['over_probability'] >= 65 or a['under_probability'] >= 65 else (1 if a['over_probability'] >= 55 else 0)
         sc += 1 if a['consistency'] >= 70 else 0
         sc += 1 if a['chi_ok'] else 0
-        sc += 1 if c['games_played'] >= 30 else 0
+        sc += 1 if result['games_played'] >= 20 else 0
         conf = 'HIGH' if sc >= 5 else ('MEDIUM' if sc >= 3 else 'LOW')
         
         opps.append({
-            'player': c['prop']['player'],
-            'stat_type': c['prop']['stat_type'],
-            'game_info': game_info.get(c['prop']['game_id'], {}),
-            'season_avg': round(c['season_avg'], 1),
-            'games_played': c['games_played'],
+            'player': result['player_name'],
+            'stat_type': stat_type,
+            'game_info': game_info.get(prop['game_id'], {}),
+            'season_avg': round(result['season_avg'], 1),
+            'games_played': result['games_played'],
             'line_analysis': {
                 'bookmaker_line': bl['line'],
                 'bookmaker': bl['book'].upper(),
@@ -430,6 +397,8 @@ def deep_analyze(candidates, game_info, min_edge=5):
                 'under_count': a['under_count']
             }
         })
+        
+        time.sleep(0.4)
     
     opps.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
     return opps
@@ -437,6 +406,7 @@ def deep_analyze(candidates, game_info, min_edge=5):
 
 @app.route('/api/daily-opportunities', methods=['GET'])
 def daily_opportunities():
+    """Main endpoint - scan for betting opportunities"""
     try:
         min_edge = float(request.args.get('min_edge', 5))
         min_conf = request.args.get('min_confidence', 'LOW')
@@ -447,11 +417,10 @@ def daily_opportunities():
         
         log_debug(f"=== SCAN: {stat_type} ===")
         
-        ps = get_all_player_averages()
-        if not ps:
+        if not BALLDONTLIE_API_KEY:
             return jsonify({
                 'status': 'ERROR',
-                'message': 'Could not fetch NBA stats - NBA API may be blocking cloud requests',
+                'message': 'BALLDONTLIE_API_KEY not set. Get free key at https://api.balldontlie.io',
                 'debug_log': DEBUG_LOG[-15:]
             }), 500
         
@@ -465,18 +434,7 @@ def daily_opportunities():
                 'debug_log': DEBUG_LOG[-15:]
             })
         
-        cands = quick_filter(props, ps, 2)
-        if not cands:
-            return jsonify({
-                'status': 'SUCCESS',
-                'message': 'No candidates matched filters',
-                'opportunities': [],
-                'total_props': len(props),
-                'players_in_db': len(ps),
-                'debug_log': DEBUG_LOG[-15:]
-            })
-        
-        opps = deep_analyze(cands, gi, min_edge)
+        opps = deep_analyze_props(props, gi, stat_type, min_edge)
         
         cl = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
         filtered = [o for o in opps if cl.get(o['line_analysis']['bet_confidence'], 0) >= cl.get(min_conf, 1)]
@@ -485,11 +443,12 @@ def daily_opportunities():
             'status': 'SUCCESS',
             'stat_type': stat_type,
             'total_props': len(props),
-            'players_in_db': len(ps),
-            'candidates_analyzed': len(cands),
+            'players_in_db': len(PLAYER_ID_CACHE),
+            'candidates_analyzed': len(props),
             'opportunities_found': len(filtered),
             'opportunities': filtered,
             'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'api_source': 'balldontlie.io',
             'debug_log': DEBUG_LOG[-15:]
         })
         
@@ -504,14 +463,29 @@ def daily_opportunities():
 
 @app.route('/api/debug', methods=['GET'])
 def debug_endpoint():
+    """Debug endpoint to test APIs"""
     r = {'timestamp': datetime.now().isoformat(), 'tests': {}}
     
-    ps = get_all_player_averages()
-    r['tests']['nba_api'] = {
-        'success': len(ps) > 0,
-        'players_found': len(ps),
-        'sample': list(ps.keys())[:5]
-    }
+    if BALLDONTLIE_API_KEY:
+        player = search_player("LeBron James")
+        r['tests']['balldontlie'] = {
+            'success': player is not None,
+            'api_key_set': True,
+            'test_player': player
+        }
+        
+        if player:
+            games = get_player_game_log(player['id'], 'points')
+            r['tests']['game_log'] = {
+                'success': games is not None,
+                'games_found': len(games) if games else 0
+            }
+    else:
+        r['tests']['balldontlie'] = {
+            'success': False,
+            'api_key_set': False,
+            'message': 'Set BALLDONTLIE_API_KEY env var. Get free at https://api.balldontlie.io'
+        }
     
     games = get_nba_games()
     r['tests']['odds_api_games'] = {
@@ -534,6 +508,7 @@ def debug_endpoint():
 
 @app.route('/api/odds/usage', methods=['GET'])
 def get_usage():
+    """Check Odds API usage"""
     try:
         r = requests.get(f"{ODDS_BASE_URL}/sports", params={'apiKey': ODDS_API_KEY}, timeout=10)
         return jsonify({
@@ -546,12 +521,22 @@ def get_usage():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'version': '8.4', 'season': '2025-26'})
+    return jsonify({
+        'status': 'healthy',
+        'version': '8.5',
+        'data_source': 'balldontlie.io',
+        'bdl_key_set': bool(BALLDONTLIE_API_KEY)
+    })
 
 
 @app.route('/')
 def home():
-    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.4', 'season': '2025-26 only'})
+    return jsonify({
+        'app': 'NBA Betting Analyzer',
+        'version': '8.5',
+        'data_source': 'balldontlie.io (no cloud blocking!)',
+        'setup': 'Set BALLDONTLIE_API_KEY env var'
+    })
 
 
 if __name__ == '__main__':
