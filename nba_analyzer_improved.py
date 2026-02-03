@@ -753,4 +753,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting NBA Analyzer v8.6.0 - MANUAL LINE MODE")
     print(f"Enter YOUR BetOnline lines for accurate analysis!")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False) 
