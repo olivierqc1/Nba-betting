@@ -372,6 +372,8 @@ def get_player_full_stats(player_name, stat_type='points'):
         'recent_games': [{'stat': round(g['stat'], 1), 'date': g['date'][:10]} for g in games[:5]]
     }
 
+
+
 # ============ PART 2 - PASTE BELOW PART 1 ============
 
 
@@ -753,4 +755,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting NBA Analyzer v8.6.0 - MANUAL LINE MODE")
     print(f"Enter YOUR BetOnline lines for accurate analysis!")
-    app.run(host='0.0.0.0', port=port, debug=False) 
+    app.run(host='0.0.0.0', port=port, debug=False)
