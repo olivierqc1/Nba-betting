@@ -1,5 +1,5 @@
 """
-NBA Betting Analyzer v8.5
+NBA Betting Analyzer v8.5.1
 - Uses balldontlie.io API (no cloud IP blocking!)
 - Requires free API key from https://api.balldontlie.io
 - Season 2025-26 data
@@ -60,6 +60,7 @@ DEFENSIVE_RATINGS = {
     'Washington Wizards': 117.5, 'WAS': 117.5,
 }
 
+
 def get_defense_rating(team_name):
     if not team_name:
         return 112.0
@@ -69,6 +70,7 @@ def get_defense_rating(team_name):
         if key.lower() in team_name.lower() or team_name.lower() in key.lower():
             return rating
     return 112.0
+
 
 def get_defense_category(rating):
     if rating < 110:
@@ -82,6 +84,7 @@ def get_defense_category(rating):
     else:
         return {'category': 'POOR', 'emoji': '🔥', 'impact': +3.0}
 
+
 def log_debug(msg):
     timestamp = datetime.now().strftime('%H:%M:%S')
     DEBUG_LOG.append(f"[{timestamp}] {msg}")
@@ -89,11 +92,13 @@ def log_debug(msg):
     if len(DEBUG_LOG) > 50:
         DEBUG_LOG.pop(0)
 
+
 def normalize_name(name):
     name = name.lower().strip()
     for s in [' jr.', ' jr', ' sr.', ' sr', ' iii', ' ii', ' iv', '.']:
         name = name.replace(s, '')
     return name.strip()
+
 
 def bdl_request(endpoint, params=None):
     headers = {}
@@ -101,6 +106,7 @@ def bdl_request(endpoint, params=None):
         headers['Authorization'] = BALLDONTLIE_API_KEY
     try:
         url = f"{BDL_BASE_URL}/{endpoint}"
+        log_debug(f"BDL request: {endpoint}")
         response = requests.get(url, headers=headers, params=params, timeout=15)
         if response.status_code == 200:
             return response.json()
@@ -114,6 +120,7 @@ def bdl_request(endpoint, params=None):
     except Exception as e:
         log_debug(f"BDL request error: {str(e)[:50]}")
     return None
+
 
 def search_player(name):
     norm_name = normalize_name(name)
@@ -135,6 +142,7 @@ def search_player(name):
                 return PLAYER_ID_CACHE[p_norm]
     return None
 
+
 def get_player_season_avg(player_id):
     data = bdl_request("season_averages", {"season": 2025, "player_ids[]": player_id})
     if data and 'data' in data and len(data['data']) > 0:
@@ -147,6 +155,7 @@ def get_player_season_avg(player_id):
             'min': stats.get('min', '0')
         }
     return None
+
 
 def get_player_game_log(player_id, stat_type='points'):
     stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
@@ -172,6 +181,7 @@ def get_player_game_log(player_id, stat_type='points'):
     games.sort(key=lambda x: x['date'], reverse=True)
     log_debug(f"Got {len(games)} games for player {player_id}")
     return games if games else None
+
 
 def analyze_game_log(games, line):
     if not games or len(games) < 5:
@@ -212,7 +222,10 @@ def analyze_game_log(games, line):
         'under_count': int(total - over_count),
         'chi_ok': chi_ok,
         'kelly_criterion': round(kelly, 1)
-    }def get_nba_games():
+    }
+
+
+def get_nba_games():
     try:
         params = {
             'apiKey': ODDS_API_KEY,
@@ -228,6 +241,7 @@ def analyze_game_log(games, line):
     except Exception as e:
         log_debug(f"Odds API error: {e}")
     return []
+
 
 def get_player_props(stat_type='points'):
     games = get_nba_games()
@@ -262,6 +276,7 @@ def get_player_props(stat_type='points'):
     log_debug(f"Found {len(all_props)} {stat_type} props")
     return all_props, game_info
 
+
 def analyze_player_prop(player_name, stat_type, line):
     player_info = search_player(player_name)
     if not player_info:
@@ -284,6 +299,7 @@ def analyze_player_prop(player_name, stat_type, line):
         'games_played': season_avg.get('gp', len(games)) if season_avg else len(games),
         'analysis': analysis
     }
+
 
 def deep_analyze_props(props, game_info, stat_type, min_edge=5):
     opps = []
@@ -367,6 +383,7 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
     opps.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
     return opps
 
+
 @app.route('/api/daily-opportunities', methods=['GET'])
 def daily_opportunities():
     try:
@@ -376,6 +393,7 @@ def daily_opportunities():
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
         log_debug(f"=== SCAN: {stat_type} ===")
+        log_debug(f"BDL key set: {bool(BALLDONTLIE_API_KEY)}")
         if not BALLDONTLIE_API_KEY:
             return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set. Get free key at https://api.balldontlie.io', 'debug_log': DEBUG_LOG[-15:]}), 500
         props, gi = get_player_props(stat_type)
@@ -401,9 +419,15 @@ def daily_opportunities():
         log_debug(f"ERROR: {e}")
         return jsonify({'status': 'ERROR', 'message': str(e), 'debug_log': DEBUG_LOG[-15:]}), 500
 
+
 @app.route('/api/debug', methods=['GET'])
 def debug_endpoint():
     r = {'timestamp': datetime.now().isoformat(), 'tests': {}}
+    r['env_check'] = {
+        'BALLDONTLIE_API_KEY': bool(BALLDONTLIE_API_KEY),
+        'ODDS_API_KEY': bool(ODDS_API_KEY),
+        'bdl_key_length': len(BALLDONTLIE_API_KEY) if BALLDONTLIE_API_KEY else 0
+    }
     if BALLDONTLIE_API_KEY:
         player = search_player("LeBron James")
         r['tests']['balldontlie'] = {'success': player is not None, 'api_key_set': True, 'test_player': player}
@@ -420,6 +444,7 @@ def debug_endpoint():
     r['debug_log'] = DEBUG_LOG[-20:]
     return jsonify(r)
 
+
 @app.route('/api/odds/usage', methods=['GET'])
 def get_usage():
     try:
@@ -428,14 +453,34 @@ def get_usage():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'version': '8.5', 'data_source': 'balldontlie.io', 'season': '2025-26', 'bdl_key_set': bool(BALLDONTLIE_API_KEY)})
+    return jsonify({
+        'status': 'healthy',
+        'version': '8.5.1',
+        'data_source': 'balldontlie.io',
+        'season': '2025-26',
+        'bdl_key_set': bool(BALLDONTLIE_API_KEY),
+        'bdl_key_length': len(BALLDONTLIE_API_KEY) if BALLDONTLIE_API_KEY else 0
+    })
+
 
 @app.route('/')
 def home():
-    return jsonify({'app': 'NBA Betting Analyzer', 'version': '8.5', 'season': '2025-26', 'data_source': 'balldontlie.io (no cloud blocking!)', 'setup': 'Set BALLDONTLIE_API_KEY env var'})
+    return jsonify({
+        'app': 'NBA Betting Analyzer',
+        'version': '8.5.1',
+        'season': '2025-26',
+        'data_source': 'balldontlie.io',
+        'bdl_key_set': bool(BALLDONTLIE_API_KEY),
+        'setup': 'Set BALLDONTLIE_API_KEY env var'
+    })
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"Starting NBA Analyzer v8.5.1")
+    print(f"BALLDONTLIE_API_KEY set: {bool(BALLDONTLIE_API_KEY)}")
+    print(f"ODDS_API_KEY set: {bool(ODDS_API_KEY)}")
     app.run(host='0.0.0.0', port=port, debug=False)
