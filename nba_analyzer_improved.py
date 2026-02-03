@@ -1,7 +1,8 @@
 """
-NBA Betting Analyzer v8.5.5
-- Fixed ALL numpy type conversions
-- Ultra-defensive JSON serialization
+NBA Betting Analyzer v8.5.6
+- FIXED: Uses season_avg as fallback when game log stats are 0
+- FIXED: Validates clean_mean against season_avg
+- Added sanity checks for edge calculations
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -173,6 +174,7 @@ def get_player_game_log(player_id, stat_type='points'):
     stat_col = stat_map.get(stat_type, 'pts')
     data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2024, "per_page": 30})
     if not data or 'data' not in data:
+        log_debug(f"No stats data returned for player {player_id}")
         return None
     games = []
     for game in data['data']:
@@ -195,25 +197,40 @@ def get_player_game_log(player_id, stat_type='points'):
             'date': str(game_data.get('date', '') or '')
         })
     games.sort(key=lambda x: x['date'], reverse=True)
-    log_debug(f"Got {len(games)} games for player {player_id}")
+    log_debug(f"Got {len(games)} games for player {player_id}, stat_col={stat_col}")
     return games if games else None
 
 
-def analyze_game_log(games, line):
+def analyze_game_log(games, line, season_avg_fallback=None):
+    """Analyze game log with fallback to season average if data is invalid"""
     if not games or len(games) < 5:
         return None
+    
     values = [float(g['stat']) for g in games if g['stat'] is not None]
     if len(values) < 5:
         return None
+    
     arr = np.array(values, dtype=float)
     mean_val = float(np.mean(arr))
     std_val = float(np.std(arr))
     median_val = float(np.median(arr))
+    
+    # IQR-based outlier removal
     q1_val = float(np.percentile(arr, 25))
     q3_val = float(np.percentile(arr, 75))
     iqr = q3_val - q1_val
     clean = arr[(arr >= q1_val-1.5*iqr) & (arr <= q3_val+1.5*iqr)]
     clean_mean = float(np.mean(clean)) if len(clean) > 0 else mean_val
+    
+    # VALIDATION: If clean_mean is 0 or very low but we have a valid season_avg, use that
+    if season_avg_fallback is not None and season_avg_fallback > 5:
+        if clean_mean < 1 or abs(clean_mean - season_avg_fallback) > season_avg_fallback * 0.5:
+            log_debug(f"clean_mean={clean_mean} invalid, using season_avg={season_avg_fallback}")
+            clean_mean = season_avg_fallback
+            mean_val = season_avg_fallback if mean_val < 1 else mean_val
+            median_val = season_avg_fallback if median_val < 1 else median_val
+    
+    # Trend analysis
     x = np.arange(len(arr))
     try:
         slope, intercept, r_value, p_value_trend, std_err = scipy_stats.linregress(x, arr)
@@ -222,9 +239,13 @@ def analyze_game_log(games, line):
     except:
         r_squared = 0.0
         trend_slope = 0.0
+    
+    # Over/under counting
     over_count = int(np.sum(arr > line))
     total = len(values)
     over_prob = (over_count / total) * 100
+    
+    # Chi-square test
     try:
         chi2, p_val = scipy_stats.chisquare([over_count, total-over_count], [total/2, total/2])
         chi_ok = True if float(p_val) > 0.05 else False
@@ -232,18 +253,37 @@ def analyze_game_log(games, line):
     except:
         chi_ok = True
         p_val = 1.0
+    
+    # Kelly criterion
     kelly = min(25, max(0, ((over_prob/100) - 0.524) / 0.91) * 100) if over_prob > 50 else 0
+    
+    # Trend direction
     if len(values) >= 10:
         recent_5 = float(np.mean(arr[:5]))
         prev_5 = float(np.mean(arr[5:10]))
+        # Validate recent averages
+        if recent_5 < 1 and season_avg_fallback:
+            recent_5 = season_avg_fallback
+        if prev_5 < 1 and season_avg_fallback:
+            prev_5 = season_avg_fallback
         if recent_5 > prev_5 * 1.05:
             trend_dir = 'UP'
         elif recent_5 < prev_5 * 0.95:
             trend_dir = 'DOWN'
         else:
             trend_dir = 'STABLE'
+        avg_last_5 = round(recent_5, 1)
+        avg_last_10 = round(float(np.mean(arr[:10])), 1)
+        if avg_last_10 < 1 and season_avg_fallback:
+            avg_last_10 = round(season_avg_fallback, 1)
     else:
         trend_dir = 'STABLE'
+        avg_last_5 = round(float(np.mean(arr[:5])), 1) if len(arr) >= 5 else round(mean_val, 1)
+        avg_last_10 = round(mean_val, 1)
+        # Validate
+        if avg_last_5 < 1 and season_avg_fallback:
+            avg_last_5 = round(season_avg_fallback, 1)
+    
     return {
         'games_analyzed': int(total),
         'mean': round(mean_val, 1),
@@ -251,8 +291,8 @@ def analyze_game_log(games, line):
         'std': round(std_val, 2),
         'clean_mean': round(clean_mean, 1),
         'outliers_removed': int(len(values) - len(clean)),
-        'avg_last_5': round(float(np.mean(arr[:5])), 1),
-        'avg_last_10': round(float(np.mean(arr[:10])), 1) if len(values) >= 10 else round(mean_val, 1),
+        'avg_last_5': avg_last_5,
+        'avg_last_10': avg_last_10,
         'min_val': round(float(np.min(arr)), 1),
         'max_val': round(float(np.max(arr)), 1),
         'r_squared': r_squared,
@@ -314,33 +354,48 @@ def get_player_props(stat_type='points'):
             continue
     log_debug(f"Found {len(all_props)} {stat_type} props")
     return all_props, game_info
-
-
 def analyze_player_prop(player_name, stat_type, line):
     player_info = search_player(player_name)
     if not player_info:
         log_debug(f"Player not found: {player_name}")
         return None
     player_id = player_info['id']
+    
+    # Get season average FIRST (this is reliable)
+    season_avg = get_player_season_avg(player_id)
+    stat_key = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}.get(stat_type, 'pts')
+    season_val = float(season_avg.get(stat_key, 0)) if season_avg else 0
+    games_played = int(season_avg.get('gp', 0)) if season_avg else 0
+    
+    log_debug(f"{player_name}: season_avg={season_val}, games_played={games_played}")
+    
+    # Get game log
     games = get_player_game_log(player_id, stat_type)
     if not games:
         log_debug(f"No games found for {player_name}")
         return None
-    season_avg = get_player_season_avg(player_id)
-    analysis = analyze_game_log(games, line)
+    
+    # Analyze with season_avg as fallback
+    analysis = analyze_game_log(games, line, season_avg_fallback=season_val)
     if not analysis:
         return None
-    stat_key = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}.get(stat_type, 'pts')
-    season_val = float(season_avg.get(stat_key, 0)) if season_avg else float(analysis['mean'])
-    games_played = int(season_avg.get('gp', len(games))) if season_avg else len(games)
+    
+    # Final validation
+    if analysis['clean_mean'] < 1 and season_val > 5:
+        log_debug(f"OVERRIDE: Using season_val {season_val} instead of clean_mean {analysis['clean_mean']}")
+        analysis['clean_mean'] = round(season_val, 1)
+        analysis['mean'] = round(season_val, 1)
+    
     return {
         'player_id': int(player_id),
         'player_name': str(player_info['name']),
         'team': str(player_info.get('team', 'N/A')),
-        'season_avg': season_val,
-        'games_played': games_played,
+        'season_avg': round(season_val, 1) if season_val > 0 else round(analysis['mean'], 1),
+        'games_played': games_played if games_played > 0 else len(games),
         'analysis': analysis
     }
+
+
 def deep_analyze_props(props, game_info, stat_type, min_edge=5):
     opps = []
     star_players = [
@@ -353,36 +408,58 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
         'brandon ingram', 'julius randle', 'bam adebayo', 'karl-anthony towns',
         'jaylen brown', 'jalen brunson', 'fred vanvleet', 'chet holmgren'
     ]
+    
     def is_star(p):
         return normalize_name(p['player']) in star_players
+    
     sorted_props = sorted(props, key=lambda p: (0 if is_star(p) else 1))
     analyzed_count = 0
     max_analyze = 15
+    
     for prop in sorted_props:
         if analyzed_count >= max_analyze:
             log_debug(f"Reached max {max_analyze} players analyzed")
             break
+        
         player_name = prop['player']
         overs = [l for l in prop['lines'] if l['type'] == 'Over']
         unders = [l for l in prop['lines'] if l['type'] == 'Under']
         if not overs:
             continue
+        
         best_over = min(overs, key=lambda x: x['line'])
         best_under = max(unders, key=lambda x: x['line']) if unders else None
         line = best_over['line']
+        
         result = analyze_player_prop(player_name, stat_type, line)
         analyzed_count += 1
+        
         if not result:
             continue
+        
         a = result['analysis']
+        
+        # VALIDATION: Skip if clean_mean is still 0 (invalid data)
+        if a['clean_mean'] < 1:
+            log_debug(f"Skipping {player_name}: clean_mean={a['clean_mean']} invalid")
+            continue
+        
+        # Calculate edge
         oe = ((a['clean_mean'] - line) / line) * 100
         ue = ((line - a['clean_mean']) / line) * 100 if best_under else 0
+        
+        # VALIDATION: Cap edge at reasonable values (max 50%)
+        oe = min(50, max(-50, oe))
+        ue = min(50, max(-50, ue))
+        
         if a['over_probability'] > 52 and oe >= min_edge:
             rec, edge, bl = 'OVER', oe, best_over
         elif a['under_probability'] > 52 and ue >= min_edge:
             rec, edge, bl = 'UNDER', ue, best_under
         else:
             continue
+        
+        # Confidence score
         sc = 0
         sc += 2 if edge >= 10 else (1 if edge >= 7 else 0)
         sc += 2 if a['over_probability'] >= 65 or a['under_probability'] >= 65 else (1 if a['over_probability'] >= 55 else 0)
@@ -391,6 +468,8 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
         sc += 1 if result['games_played'] >= 20 else 0
         sc += 1 if a['r_squared'] >= 0.1 else 0
         conf = 'HIGH' if sc >= 5 else ('MEDIUM' if sc >= 3 else 'LOW')
+        
+        # Game info
         gi_data = game_info.get(prop['game_id'], {})
         home_team = gi_data.get('home_team', '')
         away_team = gi_data.get('away_team', '')
@@ -398,11 +477,12 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
         def_rating = get_defense_rating(opponent) if opponent else 112.0
         def_info = get_defense_category(def_rating)
         adjusted_edge = edge + def_info['impact']
+        
         opp = {
             'player': str(result['player_name']),
             'team': str(result.get('team', 'N/A')),
             'stat_type': str(stat_type),
-            'game_info': {'home_team': str(gi_data.get('home_team', '')), 'away_team': str(gi_data.get('away_team', ''))},
+            'game_info': {'home_team': str(home_team), 'away_team': str(away_team)},
             'season_avg': round(float(result['season_avg']), 1),
             'games_played': int(result['games_played']),
             'line_analysis': {
@@ -447,6 +527,7 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
             }
         }
         opps.append(opp)
+    
     opps.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
     return opps
 
@@ -459,7 +540,7 @@ def daily_opportunities():
         stat_type = request.args.get('stat_type', 'points')
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
-        log_debug(f"=== SCAN v8.5.5: {stat_type} ===")
+        log_debug(f"=== SCAN v8.5.6: {stat_type} ===")
         if not BALLDONTLIE_API_KEY:
             return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set'}), 500
         props, gi = get_player_props(stat_type)
@@ -489,7 +570,7 @@ def daily_opportunities():
 
 @app.route('/api/debug', methods=['GET'])
 def debug_endpoint():
-    r = {'timestamp': datetime.now().isoformat(), 'version': '8.5.5', 'tests': {}}
+    r = {'timestamp': datetime.now().isoformat(), 'version': '8.5.6', 'tests': {}}
     r['env_check'] = {
         'BALLDONTLIE_API_KEY': True if BALLDONTLIE_API_KEY else False,
         'ODDS_API_KEY': True if ODDS_API_KEY else False,
@@ -499,8 +580,14 @@ def debug_endpoint():
         player = search_player("LeBron James")
         r['tests']['balldontlie'] = {'success': True if player else False, 'test_player': player}
         if player:
+            season_avg = get_player_season_avg(player['id'])
+            r['tests']['season_avg'] = {'success': True if season_avg else False, 'data': season_avg}
             games = get_player_game_log(player['id'], 'points')
-            r['tests']['game_log'] = {'success': True if games else False, 'games_found': int(len(games)) if games else 0}
+            r['tests']['game_log'] = {
+                'success': True if games else False, 
+                'games_found': int(len(games)) if games else 0,
+                'sample': games[:3] if games else []
+            }
     games = get_nba_games()
     r['tests']['odds_api'] = {'success': True if len(games) > 0 else False, 'games_found': int(len(games))}
     r['debug_log'] = DEBUG_LOG[-20:]
@@ -520,7 +607,7 @@ def get_usage():
 def health():
     return jsonify({
         'status': 'healthy',
-        'version': '8.5.5',
+        'version': '8.5.6',
         'season': '2024-25',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False
     })
@@ -530,7 +617,7 @@ def health():
 def home():
     return jsonify({
         'app': 'NBA Betting Analyzer',
-        'version': '8.5.5',
+        'version': '8.5.6',
         'season': '2024-25',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False
     })
@@ -538,5 +625,5 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting NBA Analyzer v8.5.5")
+    print(f"Starting NBA Analyzer v8.5.6")
     app.run(host='0.0.0.0', port=port, debug=False)
