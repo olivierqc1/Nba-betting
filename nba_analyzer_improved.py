@@ -340,7 +340,8 @@ def analyze_player_prop(player_name, stat_type, line):
         'season_avg': season_val,
         'games_played': games_played,
         'analysis': analysis
-    }def deep_analyze_props(props, game_info, stat_type, min_edge=5):
+    }
+def deep_analyze_props(props, game_info, stat_type, min_edge=5):
     opps = []
     star_players = [
         'lebron james', 'stephen curry', 'kevin durant', 'giannis antetokounmpo',
