@@ -39,9 +39,10 @@ function App() {
             const data = await res.json();
             if (data.status === 'SUCCESS') {
                 setOpps(data.opportunities || []);
+                // Initialize manual inputs as EMPTY (not pre-filled!)
                 const init = {};
                 data.opportunities?.forEach((o, i) => {
-                    init[i] = { line: o.line_analysis.bookmaker_line, odds: o.line_analysis.odds };
+                    init[i] = { line: '', odds: '' };
                 });
                 setManual(init);
                 setStatus(`✅ ${data.opportunities?.length || 0} opportunités`);
@@ -59,23 +60,33 @@ function App() {
     };
 
     const update = (i, field, val) => {
-        setManual(p => ({ ...p, [i]: { ...p[i], [field]: parseFloat(val) || 0 } }));
+        setManual(p => ({ ...p, [i]: { ...p[i], [field]: val } }));
     };
 
-    const impliedProb = (odds) => odds > 0 ? 100/(odds+100) : Math.abs(odds)/(Math.abs(odds)+100);
+    const impliedProb = (odds) => {
+        const o = parseFloat(odds);
+        if (isNaN(o)) return 0.5;
+        return o > 0 ? 100/(o+100) : Math.abs(o)/(Math.abs(o)+100);
+    };
     
     const calcEdge = (o, m) => {
+        if (!m.odds || m.odds === '') return null;
         const prob = o.line_analysis.recommendation === 'OVER' ? o.line_analysis.over_probability : o.line_analysis.under_probability;
         return prob - impliedProb(m.odds) * 100;
     };
 
     const calcEV = (o, m) => {
+        if (!m.odds || m.odds === '') return null;
         const prob = (o.line_analysis.recommendation === 'OVER' ? o.line_analysis.over_probability : o.line_analysis.under_probability) / 100;
-        const payout = m.odds > 0 ? m.odds/100 : 100/Math.abs(m.odds);
+        const odds = parseFloat(m.odds);
+        const payout = odds > 0 ? odds/100 : 100/Math.abs(odds);
         return (prob * payout - (1 - prob)) * 100;
     };
 
-    const edgeColor = (e) => e >= 10 ? '#22c55e' : e >= 5 ? '#84cc16' : e >= 0 ? '#eab308' : '#ef4444';
+    const edgeColor = (e) => {
+        if (e === null) return '#64748b';
+        return e >= 10 ? '#22c55e' : e >= 5 ? '#84cc16' : e >= 0 ? '#eab308' : '#ef4444';
+    };
 
     return (
         <div className="min-h-screen p-4">
@@ -124,11 +135,12 @@ function App() {
 
                 <div className="space-y-3">
                     {opps.map((o, i) => {
-                        const m = manual[i] || { line: o.line_analysis.bookmaker_line, odds: o.line_analysis.odds };
+                        const m = manual[i] || { line: '', odds: '' };
+                        const hasManual = m.line !== '' && m.odds !== '';
                         const edge = calcEdge(o, m);
                         const ev = calcEV(o, m);
-                        const lineDiff = m.line - o.line_analysis.bookmaker_line;
-                        const isGood = edge >= 5 && ev > 0;
+                        const lineDiff = hasManual ? parseFloat(m.line) - o.line_analysis.bookmaker_line : null;
+                        const isGood = hasManual && edge >= 5 && ev > 0;
                         
                         return (
                             <div key={i} className={`bg-slate-800 rounded-lg p-3 border ${isGood ? 'border-green-500' : 'border-slate-700'}`}>
@@ -143,29 +155,34 @@ function App() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                                    {/* API Side */}
                                     <div className="bg-slate-700/50 rounded p-2">
                                         <p className="text-xs text-slate-400">📡 {o.line_analysis.bookmaker}</p>
                                         <p>Line: <span className="text-blue-400 font-mono">{o.line_analysis.bookmaker_line}</span></p>
                                         <p>Odds: <span className="text-blue-400 font-mono">{o.line_analysis.odds > 0 ? '+' : ''}{o.line_analysis.odds}</span></p>
                                     </div>
+                                    {/* BetOnline Side - EMPTY by default */}
                                     <div className="bg-slate-700/50 rounded p-2 border border-yellow-500/50">
-                                        <p className="text-xs text-yellow-400">✏️ BetOnline</p>
+                                        <p className="text-xs text-yellow-400">✏️ BetOnline (manuel)</p>
                                         <div className="flex items-center gap-1">
                                             <span>Line:</span>
                                             <input type="number" step="0.5" value={m.line}
+                                                placeholder="—"
                                                 onChange={e => update(i, 'line', e.target.value)}
-                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm"/>
+                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm placeholder-slate-500"/>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <span>Odds:</span>
                                             <input type="number" value={m.odds}
+                                                placeholder="—"
                                                 onChange={e => update(i, 'odds', e.target.value)}
-                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm"/>
+                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm placeholder-slate-500"/>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                {/* Stats Row 1: Prob, Line Δ, Edge, EV */}
+                                <div className="grid grid-cols-4 gap-1 text-center text-xs mb-2">
                                     <div className="bg-slate-700 rounded p-1.5">
                                         <p className="text-slate-400">Prob</p>
                                         <p className="font-bold text-green-400">
@@ -174,26 +191,51 @@ function App() {
                                     </div>
                                     <div className="bg-slate-700 rounded p-1.5">
                                         <p className="text-slate-400">Line Δ</p>
-                                        <p className={`font-bold ${lineDiff === 0 ? 'text-slate-300' : lineDiff > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                            {lineDiff > 0 ? '+' : ''}{lineDiff.toFixed(1)}
+                                        <p className={`font-bold ${lineDiff === null ? 'text-slate-500' : lineDiff === 0 ? 'text-slate-300' : lineDiff > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                            {lineDiff === null ? '—' : (lineDiff > 0 ? '+' : '') + lineDiff.toFixed(1)}
                                         </p>
                                     </div>
                                     <div className="bg-slate-700 rounded p-1.5">
                                         <p className="text-slate-400">Edge</p>
-                                        <p className="font-bold" style={{color: edgeColor(edge)}}>{edge.toFixed(1)}%</p>
+                                        <p className="font-bold" style={{color: edgeColor(edge)}}>
+                                            {edge === null ? '—' : edge.toFixed(1) + '%'}
+                                        </p>
                                     </div>
                                     <div className="bg-slate-700 rounded p-1.5">
                                         <p className="text-slate-400">EV</p>
-                                        <p className={`font-bold ${ev >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {ev >= 0 ? '+' : ''}{ev.toFixed(1)}%
+                                        <p className={`font-bold ${ev === null ? 'text-slate-500' : ev >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {ev === null ? '—' : (ev >= 0 ? '+' : '') + ev.toFixed(1) + '%'}
                                         </p>
                                     </div>
                                 </div>
 
+                                {/* Stats Row 2: L5, Mean, σ (std), R² */}
+                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                    <div className="bg-slate-700/50 rounded p-1.5">
+                                        <p className="text-slate-500">L5</p>
+                                        <p className="font-semibold text-slate-300">{o.deep_stats.avg_last_5}</p>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-1.5">
+                                        <p className="text-slate-500">Mean</p>
+                                        <p className="font-semibold text-slate-300">{o.deep_stats.clean_mean}</p>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-1.5">
+                                        <p className="text-slate-500">σ (std)</p>
+                                        <p className="font-semibold text-cyan-400">{o.deep_stats.std}</p>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-1.5">
+                                        <p className="text-slate-500">R²</p>
+                                        <p className={`font-semibold ${o.deep_stats.r_squared >= 0.1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                            {o.deep_stats.r_squared}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Consistency row */}
                                 <div className="mt-2 text-xs text-slate-500 flex justify-between">
-                                    <span>L5: {o.deep_stats.avg_last_5}</span>
-                                    <span>Mean: {o.deep_stats.clean_mean}</span>
                                     <span>Cons: {o.deep_stats.consistency}%</span>
+                                    <span>Games: {o.deep_stats.games_analyzed}</span>
+                                    <span>Chi²: {o.deep_stats.chi_ok ? '✅' : '❌'}</span>
                                 </div>
 
                                 {isGood && (
