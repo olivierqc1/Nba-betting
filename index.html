@@ -3,703 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>☕ NBA Morning Brief</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            padding: 15px;
-            color: #333;
-        }
-
-        .container { max-width: 1100px; margin: 0 auto; }
-
-        .header {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2em;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header p { color: #666; font-size: 0.9em; margin-top: 5px; }
-        
-        .method-badge {
-            display: inline-block;
-            background: #d1fae5;
-            color: #065f46;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.75em;
-            margin-top: 10px;
-        }
-
-        .stat-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .stat-tab {
-            flex: 1;
-            padding: 12px;
-            background: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .stat-tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .controls {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .filter-group label { font-weight: 600; font-size: 0.85em; }
-        .filter-group input, .filter-group select {
-            padding: 8px 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 0.9em;
-        }
-
-        .btn-scan {
-            padding: 12px 25px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1em;
-            font-weight: 700;
-            cursor: pointer;
-            flex-grow: 1;
-        }
-
-        .btn-scan:disabled { opacity: 0.6; cursor: wait; }
-        
-        .btn-debug {
-            padding: 8px 15px;
-            background: #f3f4f6;
-            color: #374151;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.85em;
-            cursor: pointer;
-        }
-
-        .api-usage { margin-left: auto; font-size: 0.8em; color: #666; }
-
-        .stats-bar {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            text-align: center;
-        }
-
-        .stat-item .label { font-size: 0.7em; color: #666; }
-        .stat-item .value { font-size: 1.1em; font-weight: 700; color: #667eea; }
-
-        .results-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .opp-card {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-        }
-
-        .opp-card.over { border-left: 5px solid #10b981; }
-        .opp-card.under { border-left: 5px solid #ef4444; }
-
-        .card-main {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0;
-        }
-
-        .card-left {
-            padding: 20px;
-            background: #f8f9fa;
-        }
-
-        .card-right {
-            padding: 20px;
-        }
-
-        .game-info {
-            background: #e0f2fe;
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            font-size: 0.8em;
-            display: inline-block;
-        }
-
-        .player-name {
-            font-size: 1.4em;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 5px;
-        }
-
-        .stat-label { color: #666; font-size: 0.85em; }
-
-        .recommendation {
-            display: inline-block;
-            padding: 10px 25px;
-            border-radius: 25px;
-            font-size: 1.3em;
-            font-weight: 700;
-            margin: 15px 0;
-        }
-
-        .recommendation.over {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .recommendation.under {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .book-badge {
-            display: inline-block;
-            background: #f3f4f6;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 600;
-            margin-right: 5px;
-        }
-
-        .key-metrics {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .key-metric {
-            background: #f0fdf4;
-            padding: 12px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .key-metric.highlight {
-            background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
-            border: 2px solid #667eea;
-        }
-
-        .key-metric .label { font-size: 0.7em; color: #666; }
-        .key-metric .value { font-size: 1.2em; font-weight: 700; color: #10b981; }
-        .key-metric .value.warn { color: #f59e0b; }
-
-        .deep-stats {
-            background: #f8f9fa;
-            padding: 15px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .deep-stats-title {
-            font-weight: 700;
-            font-size: 0.85em;
-            color: #374151;
-            margin-bottom: 12px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
-        }
-
-        .stat-box {
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-        }
-
-        .stat-box .label { font-size: 0.65em; color: #666; text-transform: uppercase; }
-        .stat-box .value { font-size: 1em; font-weight: 700; color: #1f2937; }
-        .stat-box .sub { font-size: 0.7em; color: #9ca3af; }
-
-        .trend-up { color: #10b981; }
-        .trend-down { color: #ef4444; }
-        .trend-stable { color: #6b7280; }
-
-        .hit-rate {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-        }
-
-        .hit-rate .bar {
-            flex: 1;
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .hit-rate .bar .fill {
-            height: 100%;
-            background: linear-gradient(90deg, #10b981, #059669);
-            border-radius: 4px;
-        }
-
-        .hit-rate .text { font-size: 0.8em; font-weight: 600; }
-
-        .confidence-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.75em;
-            font-weight: 600;
-        }
-
-        .confidence-badge.HIGH { background: #d1fae5; color: #065f46; }
-        .confidence-badge.MEDIUM { background: #fef3c7; color: #92400e; }
-        .confidence-badge.LOW { background: #fee2e2; color: #991b1b; }
-
-        .loading, .empty-state, .error-state {
-            text-align: center;
-            padding: 50px;
-            background: white;
-            border-radius: 16px;
-        }
-
-        .error-state { background: #fee2e2; color: #991b1b; }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .debug-log {
-            background: #1f2937;
-            color: #10b981;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-family: monospace;
-            font-size: 0.8em;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .debug-log .title {
-            color: #f59e0b;
-            margin-bottom: 10px;
-            font-weight: bold;}
-        
-        .debug-log .line {
-            margin: 3px 0;
-            padding: 2px 0;
-            border-bottom: 1px solid #374151;
-        }
-
-        .hidden { display: none !important; }
-
-        @media (max-width: 768px) {
-            .card-main { grid-template-columns: 1fr; }
-            .controls { flex-direction: column; }
-            .stat-tabs { flex-direction: column; }
-            .stats-bar { grid-template-columns: repeat(2, 1fr); }
-            .key-metrics { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
+    <title>NBA Odds Comparator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>☕ NBA Morning Brief</h1>
-            <p>Analyse approfondie: moyennes, tendances, variance, outliers</p>
-            <span class="method-badge">🔬 v8.1 - Hybrid + Debug</span>
-        </div>
+<body class="bg-slate-900 text-white">
+    <div id="root"></div>
+    <script type="text/babel">
+const { useState } = React;
+const API_URL = 'https://nba-betting-kz0o.onrender.com';
 
-        <div class="stat-tabs">
-            <button class="stat-tab active" onclick="selectStat('points', this)">📊 Points</button>
-            <button class="stat-tab" onclick="selectStat('assists', this)">🎯 Assists</button>
-            <button class="stat-tab" onclick="selectStat('rebounds', this)">🏀 Rebounds</button>
-        </div>
+function App() {
+    const [opps, setOpps] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [statType, setStatType] = useState('points');
+    const [minEdge, setMinEdge] = useState(5);
+    const [manual, setManual] = useState({});
+    const [apiUsage, setApiUsage] = useState(null);
 
-        <div class="controls">
-            <div class="filter-group">
-                <label>Edge min:</label>
-                <input type="number" id="minEdge" value="5" min="0" max="20" step="1">
-                <span>%</span>
-            </div>
-
-            <div class="filter-group">
-                <label>Confiance:</label>
-                <select id="minConfidence">
-                    <option value="LOW">Toutes</option>
-                    <option value="MEDIUM" selected>Moyenne+</option>
-                    <option value="HIGH">Haute</option>
-                </select>
-            </div>
-
-            <button class="btn-scan" id="scanBtn" onclick="scan()">🔍 Scanner</button>
-            
-            <button class="btn-debug" onclick="runDebug()">🐛 Debug</button>
-
-            <span class="api-usage" id="apiUsage">API: --/--</span>
-        </div>
-
-        <div id="statsBar" class="stats-bar hidden">
-            <div class="stat-item">
-                <div class="label">Props dispo</div>
-                <div class="value" id="totalProps">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Joueurs NBA</div>
-                <div class="value" id="playersDb">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Candidats</div>
-                <div class="value" id="candidates">-</div>
-            </div>
-            <div class="stat-item">
-                <div class="label">Opportunités</div>
-                <div class="value" id="foundOpps">-</div>
-            </div>
-        </div>
-
-        <div id="loadingDiv" class="loading hidden">
-            <div class="spinner"></div>
-            <h3>Analyse en cours...</h3>
-            <p>1. Joueurs NBA → 2. Props → 3. Analyse (~15 sec)</p>
-        </div>
-
-        <div id="emptyDiv" class="empty-state hidden">
-            <h3>😕 Aucune opportunité trouvée</h3>
-            <p id="emptyMsg">Baisse l'edge minimum ou essaie une autre catégorie.</p>
-        </div>
-
-        <div id="errorDiv" class="error-state hidden"></div>
-
-        <div id="resultsDiv" class="results-grid hidden"></div>
-        
-        <div id="debugLog" class="debug-log hidden">
-            <div class="title">🐛 Debug Log</div>
-            <div id="debugContent"></div>
-        </div>
-    </div>
-
-    <script>
-        const API_URL = 'https://nba-betting-1.onrender.com';
-        let selectedStat = 'points';
-
-        function selectStat(stat, btn) {
-            selectedStat = stat;
-            document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            
-            document.getElementById('statsBar').classList.add('hidden');
-            document.getElementById('resultsDiv').classList.add('hidden');
-            document.getElementById('emptyDiv').classList.add('hidden');
-            document.getElementById('debugLog').classList.add('hidden');
-        }
-
-        async function scan() {
-            const minEdge = document.getElementById('minEdge').value;
-            const minConfidence = document.getElementById('minConfidence').value;
-            const btn = document.getElementById('scanBtn');
-
-            btn.disabled = true;
-            btn.textContent = '⏳ Analyse...';
-            document.getElementById('loadingDiv').classList.remove('hidden');
-            document.getElementById('statsBar').classList.add('hidden');
-            document.getElementById('resultsDiv').classList.add('hidden');
-            document.getElementById('emptyDiv').classList.add('hidden');
-            document.getElementById('errorDiv').classList.add('hidden');
-            document.getElementById('debugLog').classList.add('hidden');
-
-            try {
-                const response = await fetch(
-                    `${API_URL}/api/daily-opportunities?min_edge=${minEdge}&min_confidence=${minConfidence}&stat_type=${selectedStat}`
-                );
-
-                const data = await response.json();
-                
-                // Show debug log if present
-                if (data.debug_log && data.debug_log.length > 0) {
-                    showDebugLog(data.debug_log);
-                }
-
-                if (data.status === 'SUCCESS') {
-                    displayResults(data);
-                } else {
-                    showError(data.message || 'Erreur');
-                }
-            } catch (error) {
-                showError(`Erreur: ${error.message}<br><br>Le serveur peut prendre 30-60s au premier appel. Réessaie!`);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔍 Scanner';
-                document.getElementById('loadingDiv').classList.add('hidden');
-                loadAPIUsage();
+    const scan = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`${API_URL}/api/daily-opportunities?stat_type=${statType}&min_edge=${minEdge}`);
+            const data = await res.json();
+            if (data.status === 'SUCCESS') {
+                setOpps(data.opportunities || []);
+                const init = {};
+                data.opportunities?.forEach((o, i) => {
+                    init[i] = { line: o.line_analysis.bookmaker_line, odds: o.line_analysis.odds };
+                });
+                setManual(init);
+            } else {
+                setError(data.message || 'Erreur');
             }
+            const usage = await fetch(`${API_URL}/api/odds/usage`);
+            setApiUsage(await usage.json());
+        } catch (e) {
+            setError(e.message);
         }
-        
-        async function runDebug() {
-            document.getElementById('loadingDiv').classList.remove('hidden');
-            document.getElementById('debugLog').classList.add('hidden');
-            
-            try {
-                const response = await fetch(`${API_URL}/api/debug`);
-                const data = await response.json();
-                
-                let html = `<div class="line">⏰ ${data.timestamp}</div>`;
-                
-                // NBA API test
-                const nba = data.tests.nba_api;
-                html += `<div class="line">${nba.success ? '✅' : '❌'} NBA API: ${nba.players_found} joueurs</div>`;
-                if (nba.sample && nba.sample.length > 0) {
-                    html += `<div class="line">   Exemples: ${nba.sample.join(', ')}</div>`;
-                }
-                
-                // Odds API games
-                const games = data.tests.odds_api_games;
-                html += `<div class="line">${games.success ? '✅' : '❌'} Odds API Games: ${games.games_found} matchs</div>`;
-                if (games.games && games.games.length > 0) {
-                    games.games.forEach(g => {
-                        html += `<div class="line">   🏀 ${g.away} @ ${g.home}</div>`;
-                    });
-                }
-                
-                // Props
-                if (data.tests.odds_api_props) {
-                    const props = data.tests.odds_api_props;
-                    html += `<div class="line">${props.success ? '✅' : '❌'} Props: ${props.props_found} joueurs</div>`;
-                    if (props.sample_players && props.sample_players.length > 0) {
-                        html += `<div class="line">   Exemples: ${props.sample_players.join(', ')}</div>`;
-                    }
-                }
-                
-                // Full log
-                if (data.debug_log) {
-                    html += `<div class="line" style="margin-top: 10px; color: #f59e0b;">--- Full Log ---</div>`;
-                    data.debug_log.forEach(line => {
-                        html += `<div class="line">${line}</div>`;
-                    });
-                }
-                
-                document.getElementById('debugContent').innerHTML = html;
-                document.getElementById('debugLog').classList.remove('hidden');
-                
-            } catch (error) {
-                document.getElementById('debugContent').innerHTML = `<div class="line">❌ Error: ${error.message}</div>`;
-                document.getElementById('debugLog').classList.remove('hidden');
-            } finally {
-                document.getElementById('loadingDiv').classList.add('hidden');
-            }
-        }
-        
-        function showDebugLog(logs) {
-            let html = '';
-            logs.forEach(line => {
-                html += `<div class="line">${line}</div>`;
-            });
-            document.getElementById('debugContent').innerHTML = html;
-            document.getElementById('debugLog').classList.remove('hidden');
-        }
+        setLoading(false);
+    };
 
-        function displayResults(data) {
-            document.getElementById('statsBar').classList.remove('hidden');
-            document.getElementById('totalProps').textContent = data.total_props || 0;
-            document.getElementById('playersDb').textContent = data.players_in_db || '?';
-            document.getElementById('candidates').textContent = data.candidates_analyzed || 0;
-            document.getElementById('foundOpps').textContent = data.opportunities_found || 0;
+    const update = (i, field, val) => {
+        setManual(p => ({ ...p, [i]: { ...p[i], [field]: parseFloat(val) || 0 } }));
+    };
 
-            if (data.opportunities_found === 0) {
-                document.getElementById('emptyMsg').textContent = data.message || 'Baisse l\'edge minimum ou essaie une autre catégorie.';
-                document.getElementById('emptyDiv').classList.remove('hidden');
-                return;
-            }
+    const impliedProb = (odds) => odds > 0 ? 100/(odds+100) : Math.abs(odds)/(Math.abs(odds)+100);
+    
+    const calcEdge = (o, m) => {
+        const prob = o.line_analysis.recommendation === 'OVER' ? o.line_analysis.over_probability : o.line_analysis.under_probability;
+        return prob - impliedProb(m.odds) * 100;
+    };
 
-            const resultsDiv = document.getElementById('resultsDiv');
-            resultsDiv.innerHTML = data.opportunities.map(createCard).join('');
-            resultsDiv.classList.remove('hidden');
-        }
+    const calcEV = (o, m) => {
+        const prob = (o.line_analysis.recommendation === 'OVER' ? o.line_analysis.over_probability : o.line_analysis.under_probability) / 100;
+        const payout = m.odds > 0 ? m.odds/100 : 100/Math.abs(m.odds);
+        return (prob * payout - (1 - prob)) * 100;
+    };
 
-        function createCard(opp) {
-            const la = opp.line_analysis;
-            const ds = opp.deep_stats;
-            const recClass = la.recommendation.toLowerCase();
-            
-            const statLabels = { 'points': 'Points', 'assists': 'Assists', 'rebounds': 'Rebounds' };
-            const game = opp.game_info || {};
-            const matchup = game.away_team && game.home_team ? `${game.away_team} @ ${game.home_team}` : '';
-            const oddsStr = la.odds > 0 ? `+${la.odds}` : la.odds;
+    const edgeColor = (e) => e >= 10 ? '#22c55e' : e >= 5 ? '#84cc16' : e >= 0 ? '#eab308' : '#ef4444';
 
-            const trendClass = ds.trend.includes('UP') ? 'trend-up' : (ds.trend.includes('DOWN') ? 'trend-down' : 'trend-stable');
-            
-            const hitRate = la.recommendation === 'OVER' ? la.over_probability : la.under_probability;
-            const hitCount = la.recommendation === 'OVER' ? ds.over_count : ds.under_count;
-            const totalGames = ds.games_analyzed;
+    return (
+        <div className="min-h-screen p-4">
+            <div className="max-w-2xl mx-auto">
+                <h1 className="text-2xl font-bold text-center mb-2">🏀 NBA Odds Comparator</h1>
+                <p className="text-slate-400 text-center text-sm mb-4">Compare API vs BetOnline</p>
 
-            return `
-                <div class="opp-card ${recClass}">
-                    <div class="card-main">
-                        <div class="card-left">
-                            ${matchup ? `<span class="game-info">🏀 ${matchup}</span>` : ''}
-                            <div class="player-name">${opp.player}</div>
-                            <div class="stat-label">${statLabels[opp.stat_type]} • ${opp.games_played} matchs</div>
-                            
-                            <div class="recommendation ${recClass}">
-                                ${la.recommendation} ${la.bookmaker_line}
-                            </div>
-                            
-                            <div>
-                                <span class="book-badge">📚 ${la.bookmaker}</span>
-                                <span class="book-badge">${oddsStr}</span>
-                                <span class="confidence-badge ${la.bet_confidence}">${la.bet_confidence}</span>
-                            </div>
+                {apiUsage && (
+                    <p className="text-center text-xs text-slate-500 mb-4">
+                        API: {apiUsage.used}/{parseInt(apiUsage.used||0)+parseInt(apiUsage.remaining||0)} calls
+                    </p>
+                )}
+
+                <div className="bg-slate-800 rounded-lg p-4 mb-4">
+                    <div className="flex flex-wrap gap-3 items-end justify-center">
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">Stat</label>
+                            <select value={statType} onChange={e => setStatType(e.target.value)}
+                                className="bg-slate-700 border border-slate-600 rounded px-2 py-2 text-sm">
+                                <option value="points">📊 Points</option>
+                                <option value="assists">🎯 Assists</option>
+                                <option value="rebounds">🏀 Rebounds</option>
+                            </select>
                         </div>
-                        
-                        <div class="card-right">
-                            <div class="key-metrics">
-                                <div class="key-metric highlight">
-                                    <div class="label">Edge</div>
-                                    <div class="value">+${la.edge}%</div>
-                                </div>
-                                <div class="key-metric">
-                                    <div class="label">Probabilité</div>
-                                    <div class="value">${hitRate}%</div>
-                                </div>
-                                <div class="key-metric">
-                                    <div class="label">Kelly</div>
-                                    <div class="value ${la.kelly_criterion > 5 ? '' : 'warn'}">${la.kelly_criterion}%</div>
-                                </div>
-                            </div>
-                            
-                            <div class="hit-rate">
-                                <span class="text">${hitCount}/${totalGames}</span>
-                                <div class="bar">
-                                    <div class="fill" style="width: ${hitRate}%"></div>
-                                </div>
-                                <span class="text">${hitRate}%</span>
-                            </div>
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">Edge min</label>
+                            <input type="number" value={minEdge} onChange={e => setMinEdge(e.target.value)}
+                                className="bg-slate-700 border border-slate-600 rounded px-2 py-2 w-16 text-sm"/>
                         </div>
-                    </div>
-                    
-                    <div class="deep-stats">
-                        <div class="deep-stats-title">📊 Analyse (${ds.games_analyzed} matchs)</div>
-                        <div class="stats-grid">
-                            <div class="stat-box">
-                                <div class="label">Moy. saison</div>
-                                <div class="value">${opp.season_avg}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Moy. nettoyée</div>
-                                <div class="value">${ds.clean_mean}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Médiane</div>
-                                <div class="value">${ds.median}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Écart-type</div>
-                                <div class="value">${ds.std}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Last 5</div>
-                                <div class="value">${ds.avg_last_5}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Last 10</div>
-                                <div class="value">${ds.avg_last_10}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Tendance</div>
-                                <div class="value ${trendClass}">${ds.trend}</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="label">Consistance</div>
-                                <div class="value">${ds.consistency}%</div>
-                            </div>
-                        </div>
+                        <button onClick={scan} disabled={loading}
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
+                            {loading ? '⏳...' : '🔍 Scanner'}
+                        </button>
                     </div>
                 </div>
-            `;
-        }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('errorDiv');
-            errorDiv.innerHTML = `<h3>❌ Erreur</h3><p>${message}</p>`;
-            errorDiv.classList.remove('hidden');
-        }
+                {error && (
+                    <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mb-4 text-sm">
+                        ❌ {error}
+                    </div>
+                )}
 
-        async function loadAPIUsage() {
-            try {
-                const response = await fetch(`${API_URL}/api/odds/usage`);
-                const data = await response.json();
-                if (data.used && data.remaining) {
-                    const total = parseInt(data.used) + parseInt(data.remaining);
-                    document.getElementById('apiUsage').textContent = `API: ${data.used}/${total}`;
-                }
-            } catch (e) {}
-        }
+                <div className="space-y-3">
+                    {opps.map((o, i) => {
+                        const m = manual[i] || { line: o.line_analysis.bookmaker_line, odds: o.line_analysis.odds };
+                        const edge = calcEdge(o, m);
+                        const ev = calcEV(o, m);
+                        const lineDiff = m.line - o.line_analysis.bookmaker_line;
+                        const isGood = edge >= 5 && ev > 0;
+                        
+                        return (
+                            <div key={i} className={`bg-slate-800 rounded-lg p-3 border ${isGood ? 'border-green-500' : 'border-slate-700'}`}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                        <span className="font-bold">{o.player}</span>
+                                        <span className="text-slate-400 text-sm ml-2">{o.team}</span>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${o.line_analysis.recommendation === 'OVER' ? 'bg-green-600' : 'bg-red-600'}`}>
+                                        {o.line_analysis.recommendation}
+                                    </span>
+                                </div>
 
-        window.addEventListener('load', loadAPIUsage);
+                                <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                                    <div className="bg-slate-700/50 rounded p-2">
+                                        <p className="text-xs text-slate-400">📡 {o.line_analysis.bookmaker}</p>
+                                        <p>Line: <span className="text-blue-400 font-mono">{o.line_analysis.bookmaker_line}</span></p>
+                                        <p>Odds: <span className="text-blue-400 font-mono">{o.line_analysis.odds > 0 ? '+' : ''}{o.line_analysis.odds}</span></p>
+                                    </div>
+                                    <div className="bg-slate-700/50 rounded p-2 border border-yellow-500/50">
+                                        <p className="text-xs text-yellow-400">✏️ BetOnline</p>
+                                        <div className="flex items-center gap-1">
+                                            <span>Line:</span>
+                                            <input type="number" step="0.5" value={m.line}
+                                                onChange={e => update(i, 'line', e.target.value)}
+                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm"/>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <span>Odds:</span>
+                                            <input type="number" value={m.odds}
+                                                onChange={e => update(i, 'odds', e.target.value)}
+                                                className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-16 text-yellow-400 font-mono text-sm"/>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                    <div className="bg-slate-700 rounded p-1.5">
+                                        <p className="text-slate-400">Prob</p>
+                                        <p className="font-bold text-green-400">
+                                            {o.line_analysis.recommendation === 'OVER' ? o.line_analysis.over_probability : o.line_analysis.under_probability}%
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-700 rounded p-1.5">
+                                        <p className="text-slate-400">Line Δ</p>
+                                        <p className={`font-bold ${lineDiff === 0 ? 'text-slate-300' : lineDiff > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                            {lineDiff > 0 ? '+' : ''}{lineDiff.toFixed(1)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-700 rounded p-1.5">
+                                        <p className="text-slate-400">Edge</p>
+                                        <p className="font-bold" style={{color: edgeColor(edge)}}>{edge.toFixed(1)}%</p>
+                                    </div>
+                                    <div className="bg-slate-700 rounded p-1.5">
+                                        <p className="text-slate-400">EV</p>
+                                        <p className={`font-bold ${ev >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {ev >= 0 ? '+' : ''}{ev.toFixed(1)}%
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-2 text-xs text-slate-500 flex justify-between">
+                                    <span>L5: {o.deep_stats.avg_last_5}</span>
+                                    <span>Mean: {o.deep_stats.clean_mean}</span>
+                                    <span>Cons: {o.deep_stats.consistency}%</span>
+                                </div>
+
+                                {isGood && (
+                                    <div className="mt-2 bg-green-900/30 border border-green-500 rounded p-1.5 text-center text-green-400 text-sm font-semibold">
+                                        ✅ Bet validé!
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {!loading && opps.length === 0 && !error && (
+                    <div className="text-center text-slate-500 py-12">
+                        <p className="text-4xl mb-2">🏀</p>
+                        <p>Clique Scanner pour trouver des opportunités</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
