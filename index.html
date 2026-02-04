@@ -7,19 +7,82 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0f172a; color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+        .header { text-align: center; margin-bottom: 16px; }
+        .controls { background: #1e293b; border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        select, input { background: #334155; border: 1px solid #475569; border-radius: 8px; padding: 10px; color: white; font-size: 14px; }
+        input { width: 60px; }
+        .btn { background: linear-gradient(to right, #7c3aed, #2563eb); border: none; border-radius: 8px; padding: 10px 20px; color: white; font-weight: bold; cursor: pointer; }
+        .btn:disabled { opacity: 0.5; }
+        .status { text-align: center; color: #60a5fa; font-size: 12px; margin-top: 8px; }
+        .error { background: rgba(220,38,38,0.3); border: 1px solid #dc2626; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 14px; }
+        .top-picks { background: linear-gradient(to right, rgba(22,101,52,0.5), rgba(6,78,59,0.5)); border: 2px solid #22c55e; border-radius: 12px; padding: 12px; margin-bottom: 16px; }
+        .top-picks h2 { color: #4ade80; font-size: 16px; margin-bottom: 10px; }
+        .pick-row { display: flex; justify-content: space-between; align-items: center; background: rgba(30,41,59,0.8); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
+        .pick-left { display: flex; align-items: center; gap: 8px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-over { background: #16a34a; }
+        .badge-under { background: #dc2626; }
+        .pick-name { font-weight: 600; font-size: 14px; }
+        .pick-line { color: #94a3b8; font-size: 12px; }
+        .pick-right { text-align: right; }
+        .pick-prob { color: #4ade80; font-weight: bold; }
+        .pick-fiab { color: #94a3b8; font-size: 11px; }
+        .no-picks { background: rgba(234,179,8,0.2); border: 1px solid #eab308; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px; }
+        .no-picks p { color: #fbbf24; font-size: 14px; }
+        .card { background: #1e293b; border-radius: 10px; padding: 12px; margin-bottom: 8px; border: 1px solid #334155; }
+        .card.unreliable { opacity: 0.6; border-color: #f97316; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .card-title { font-weight: bold; font-size: 15px; }
+        .card-team { color: #64748b; font-size: 12px; }
+        .card-prob { font-weight: bold; font-size: 16px; }
+        .card-prob.good { color: #4ade80; }
+        .card-prob.bad { color: #f97316; }
+        .card-fiab { color: #64748b; font-size: 11px; }
+        .warning { color: #fb923c; font-size: 11px; margin-top: 4px; }
+        .stats-row { display: flex; justify-content: space-between; background: rgba(51,65,85,0.3); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 12px; }
+        .stat-item { color: #94a3b8; }
+        .stat-val { color: white; font-weight: 500; }
+        .stat-val.cyan { color: #22d3ee; }
+        .stat-val.green { color: #4ade80; }
+        .stat-val.orange { color: #fb923c; }
+        .expand-btn { width: 100%; background: none; border: none; color: #64748b; font-size: 11px; padding: 6px; cursor: pointer; }
+        .expand-btn:hover { color: white; }
+        .details { margin-top: 10px; padding-top: 10px; border-top: 1px solid #334155; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .box { background: rgba(51,65,85,0.5); border-radius: 6px; padding: 8px; font-size: 13px; }
+        .box-title { color: #94a3b8; font-size: 11px; margin-bottom: 4px; }
+        .box-yellow { border: 1px solid rgba(234,179,8,0.3); }
+        .box-yellow .box-title { color: #fbbf24; }
+        .input-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+        .input-sm { background: #475569; border: 1px solid rgba(234,179,8,0.3); border-radius: 4px; padding: 4px; width: 60px; color: #fbbf24; font-size: 13px; }
+        .calc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; text-align: center; font-size: 11px; }
+        .calc-box { background: #334155; border-radius: 4px; padding: 6px; }
+        .calc-label { color: #64748b; }
+        .calc-val { font-weight: bold; margin-top: 2px; }
+        .calc-val.green { color: #4ade80; }
+        .calc-val.red { color: #f87171; }
+        .bet-valid { background: rgba(22,101,52,0.4); border: 1px solid #22c55e; border-radius: 6px; padding: 8px; text-align: center; color: #4ade80; font-weight: bold; margin-top: 8px; }
+        .legend { background: rgba(30,41,59,0.5); border-radius: 8px; padding: 12px; margin-top: 16px; font-size: 11px; color: #94a3b8; }
+        .legend p { margin-bottom: 4px; }
+        .empty { text-align: center; color: #64748b; padding: 60px 0; }
+        .empty-icon { font-size: 48px; margin-bottom: 10px; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white">
+<body>
     <div id="root"></div>
     <script type="text/babel">
 const { useState } = React;
-const API_URL = 'https://nba-betting-1.onrender.com';
+const API = 'https://nba-betting-1.onrender.com';
 
 function App() {
     const [opps, setOpps] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [statType, setStatType] = useState('points');
+    const [stat, setStat] = useState('points');
     const [minEdge, setMinEdge] = useState(5);
     const [manual, setManual] = useState({});
     const [status, setStatus] = useState('');
@@ -30,17 +93,17 @@ function App() {
         setError(null);
         setStatus('⏳ Réveil serveur (30-60s)...');
         try {
-            await fetch(`${API_URL}/api/health`).catch(() => {});
-            setStatus('🔍 Analyse en cours...');
-            const res = await fetch(`${API_URL}/api/daily-opportunities?stat_type=${statType}&min_edge=${minEdge}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            await fetch(API + '/api/health').catch(() => {});
+            setStatus('🔍 Analyse...');
+            const res = await fetch(API + '/api/daily-opportunities?stat_type=' + stat + '&min_edge=' + minEdge);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
             if (data.status === 'SUCCESS') {
                 setOpps(data.opportunities || []);
-                const init = {};
-                data.opportunities?.forEach((o, i) => { init[i] = { line: '', odds: '' }; });
-                setManual(init);
-                setStatus(`✅ ${data.opportunities?.length || 0} opportunités`);
+                const m = {};
+                (data.opportunities || []).forEach((o, i) => { m[i] = { line: '', odds: '' }; });
+                setManual(m);
+                setStatus('✅ ' + (data.opportunities?.length || 0) + ' opportunités');
             } else {
                 setError(data.message || 'Erreur');
             }
@@ -50,41 +113,24 @@ function App() {
         setLoading(false);
     };
 
-    const update = (i, field, val) => {
-        setManual(p => ({ ...p, [i]: { ...p[i], [field]: val } }));
-    };
-
-    const toggle = (i) => {
-        setExpanded(p => ({ ...p, [i]: !p[i] }));
-    };
-
-    // Calculate reliability score (0-100)
     const getReliability = (o) => {
-        const cons = o.deep_stats.consistency || 0;
-        const std = o.deep_stats.std || 999;
-        const mean = o.deep_stats.clean_mean || 1;
-        const cv = (std / mean) * 100; // Coefficient of variation
-        
-        // Good: cons > 60, cv < 30
-        // Bad: cons < 30, cv > 50
+        const cons = o.deep_stats?.consistency || 0;
+        const std = o.deep_stats?.std || 999;
+        const mean = o.deep_stats?.clean_mean || 1;
+        const cv = (std / mean) * 100;
         let score = cons;
         if (cv > 50) score -= 20;
         if (cv < 30) score += 10;
-        if (o.deep_stats.avg_last_5 === 0) score -= 30; // Data issue
-        
-        return Math.max(0, Math.min(100, score));
+        if (o.deep_stats?.avg_last_5 === 0) score -= 30;
+        return Math.max(0, Math.min(100, Math.round(score)));
     };
 
-    // Adjusted probability = historical prob weighted by reliability
-    const getAdjustedProb = (o) => {
-        const reliability = getReliability(o);
-        const rawProb = o.line_analysis.recommendation === 'OVER' 
-            ? o.line_analysis.over_probability 
-            : o.line_analysis.under_probability;
-        
-        // If reliability is low, move probability toward 50%
-        const adjusted = 50 + (rawProb - 50) * (reliability / 100);
-        return adjusted;
+    const getAdjProb = (o) => {
+        const rel = getReliability(o);
+        const raw = o.line_analysis?.recommendation === 'OVER' 
+            ? o.line_analysis?.over_probability 
+            : o.line_analysis?.under_probability;
+        return 50 + (raw - 50) * (rel / 100);
     };
 
     const impliedProb = (odds) => {
@@ -94,246 +140,194 @@ function App() {
     };
 
     const calcEdge = (o, m) => {
-        if (!m.odds || m.odds === '') return null;
-        const prob = getAdjustedProb(o);
-        return prob - impliedProb(m.odds);
+        if (!m.odds) return null;
+        return getAdjProb(o) - impliedProb(m.odds);
     };
 
     const calcEV = (o, m) => {
-        if (!m.odds || m.odds === '') return null;
-        const prob = getAdjustedProb(o) / 100;
+        if (!m.odds) return null;
+        const prob = getAdjProb(o) / 100;
         const odds = parseFloat(m.odds);
         const payout = odds > 0 ? odds/100 : 100/Math.abs(odds);
         return (prob * payout - (1 - prob)) * 100;
     };
 
-    // Filter TOP PICKS: high reliability + edge
     const topPicks = opps.filter(o => {
-        const reliability = getReliability(o);
-        return reliability >= 40 && 
-               o.line_analysis.edge >= 8 && 
-               o.deep_stats.avg_last_5 > 0 &&
-               o.deep_stats.consistency > 35;
+        const rel = getReliability(o);
+        return rel >= 40 && o.line_analysis?.edge >= 8 && o.deep_stats?.avg_last_5 > 0;
     }).sort((a, b) => getReliability(b) - getReliability(a)).slice(0, 5);
 
     return (
-        <div className="min-h-screen p-3 pb-20">
-            <div className="max-w-lg mx-auto">
-                <h1 className="text-xl font-bold text-center mb-3">🏀 NBA Analyzer v9</h1>
+        <div className="container">
+            <div className="header">
+                <h1>🏀 NBA Analyzer v9</h1>
+            </div>
 
-                {/* Controls */}
-                <div className="bg-slate-800 rounded-lg p-3 mb-3">
-                    <div className="flex gap-2 items-center justify-center flex-wrap">
-                        <select value={statType} onChange={e => setStatType(e.target.value)}
-                            className="bg-slate-700 border border-slate-600 rounded px-2 py-2 text-sm">
-                            <option value="points">Points</option>
-                            <option value="assists">Assists</option>
-                            <option value="rebounds">Rebounds</option>
-                        </select>
-                        <input type="number" value={minEdge} onChange={e => setMinEdge(e.target.value)}
-                            className="bg-slate-700 border border-slate-600 rounded px-2 py-2 w-14 text-sm" placeholder="Edge"/>
-                        <button onClick={scan} disabled={loading}
-                            className="bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 rounded-lg font-bold disabled:opacity-50">
-                            {loading ? '⏳' : '🔍 Scan'}
-                        </button>
-                    </div>
-                    {status && <p className="text-center text-xs text-blue-400 mt-2">{status}</p>}
-                </div>
+            <div className="controls">
+                <select value={stat} onChange={e => setStat(e.target.value)}>
+                    <option value="points">Points</option>
+                    <option value="assists">Assists</option>
+                    <option value="rebounds">Rebounds</option>
+                </select>
+                <input type="number" value={minEdge} onChange={e => setMinEdge(e.target.value)} placeholder="Edge" />
+                <button className="btn" onClick={scan} disabled={loading}>
+                    {loading ? '⏳' : '🔍 Scan'}
+                </button>
+            </div>
+            {status && <div className="status">{status}</div>}
 
-                {error && (
-                    <div className="bg-red-900/50 border border-red-500 rounded p-2 mb-3 text-sm">❌ {error}</div>
-                )}
+            {error && <div className="error">❌ {error}</div>}
 
-                {/* ⚡ TOP PICKS SUMMARY */}
-                {topPicks.length > 0 && (
-                    <div className="bg-gradient-to-br from-green-900/70 to-emerald-900/70 border-2 border-green-500 rounded-xl p-3 mb-4">
-                        <h2 className="text-lg font-bold text-green-400 mb-2">⚡ Top {topPicks.length} Picks Fiables</h2>
-                        <div className="space-y-2">
-                            {topPicks.map((o, i) => {
-                                const reliability = getReliability(o);
-                                const adjProb = getAdjustedProb(o);
-                                return (
-                                    <div key={i} className="flex items-center justify-between bg-slate-800/80 rounded-lg px-3 py-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold ${o.line_analysis.recommendation === 'OVER' ? 'bg-green-600' : 'bg-red-600'}`}>
-                                                {o.line_analysis.recommendation}
-                                            </span>
-                                            <div>
-                                                <p className="font-bold text-sm">{o.player}</p>
-                                                <p className="text-xs text-slate-400">{o.line_analysis.bookmaker_line} pts</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-green-400 font-bold">{adjProb.toFixed(0)}%</p>
-                                            <p className="text-xs text-slate-400">Fiab: {reliability}%</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2 text-center">
-                            Prob ajustée = historique × fiabilité
-                        </p>
-                    </div>
-                )}
-
-                {topPicks.length === 0 && opps.length > 0 && (
-                    <div className="bg-orange-900/30 border border-orange-500 rounded-lg p-3 mb-4 text-center">
-                        <p className="text-orange-400 text-sm">⚠️ Aucun pick fiable trouvé</p>
-                        <p className="text-xs text-slate-400">Données trop volatiles ou edge insuffisant</p>
-                    </div>
-                )}
-
-                {/* ALL OPPORTUNITIES */}
-                <div className="space-y-2">
-                    {opps.map((o, i) => {
-                        const m = manual[i] || { line: '', odds: '' };
-                        const hasManual = m.line !== '' && m.odds !== '';
-                        const edge = calcEdge(o, m);
-                        const ev = calcEV(o, m);
-                        const reliability = getReliability(o);
-                        const adjProb = getAdjustedProb(o);
-                        const rawProb = o.line_analysis.recommendation === 'OVER' 
-                            ? o.line_analysis.over_probability 
-                            : o.line_analysis.under_probability;
-                        const isExpanded = expanded[i];
-                        const isReliable = reliability >= 40;
-                        const lineDiff = hasManual ? parseFloat(m.line) - o.line_analysis.bookmaker_line : null;
-                        
+            {topPicks.length > 0 && (
+                <div className="top-picks">
+                    <h2>⚡ Top {topPicks.length} Picks Fiables</h2>
+                    {topPicks.map((o, i) => {
+                        const rel = getReliability(o);
+                        const adj = getAdjProb(o);
                         return (
-                            <div key={i} className={`bg-slate-800 rounded-lg p-3 border ${
-                                !isReliable ? 'border-orange-500/50 opacity-70' : 
-                                hasManual && edge >= 5 ? 'border-green-500' : 'border-slate-700'
-                            }`}>
-                                {/* Header */}
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${o.line_analysis.recommendation === 'OVER' ? 'bg-green-600' : 'bg-red-600'}`}>
-                                            {o.line_analysis.recommendation}
-                                        </span>
-                                        <div>
-                                            <p className="font-bold">{o.player}</p>
-                                            <p className="text-xs text-slate-400">{o.team} • Line: {o.line_analysis.bookmaker_line}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className={`font-bold ${isReliable ? 'text-green-400' : 'text-orange-400'}`}>
-                                            {adjProb.toFixed(0)}%
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                            Fiab: <span className={reliability >= 40 ? 'text-green-400' : 'text-orange-400'}>{reliability}%</span>
-                                        </p>
+                            <div key={i} className="pick-row">
+                                <div className="pick-left">
+                                    <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>
+                                        {o.line_analysis?.recommendation}
+                                    </span>
+                                    <div>
+                                        <div className="pick-name">{o.player}</div>
+                                        <div className="pick-line">{o.line_analysis?.bookmaker_line} pts</div>
                                     </div>
                                 </div>
-
-                                {/* Warning if unreliable */}
-                                {!isReliable && (
-                                    <p className="text-xs text-orange-400 mt-1">⚠️ Données trop volatiles - prob ajustée vers 50%</p>
-                                )}
-
-                                {/* Quick stats row */}
-                                <div className="flex justify-between text-xs mt-2 bg-slate-700/30 rounded p-2">
-                                    <span>L5: <span className="text-white font-medium">{o.deep_stats.avg_last_5}</span></span>
-                                    <span>Mean: <span className="text-white font-medium">{o.deep_stats.clean_mean}</span></span>
-                                    <span>σ: <span className="text-cyan-400">{o.deep_stats.std}</span></span>
-                                    <span>Cons: <span className={o.deep_stats.consistency > 40 ? 'text-green-400' : 'text-orange-400'}>{o.deep_stats.consistency}%</span></span>
+                                <div className="pick-right">
+                                    <div className="pick-prob">{adj.toFixed(0)}%</div>
+                                    <div className="pick-fiab">Fiab: {rel}%</div>
                                 </div>
-
-                                {/* Expand button */}
-                                <button onClick={() => toggle(i)} className="w-full text-xs text-slate-500 mt-2 hover:text-white">
-                                    {isExpanded ? '▲ Fermer' : '▼ BetOnline + Détails'}
-                                </button>
-
-                                {/* Expanded section */}
-                                {isExpanded && (
-                                    <div className="mt-2 pt-2 border-t border-slate-700">
-                                        {/* Prob explanation */}
-                                        <div className="bg-slate-700/30 rounded p-2 mb-2 text-xs">
-                                            <p>Prob brute: {rawProb}% → Ajustée: {adjProb.toFixed(0)}%</p>
-                                            <p className="text-slate-400">Ajustement basé sur fiabilité ({reliability}%)</p>
-                                        </div>
-
-                                        {/* BetOnline inputs */}
-                                        <div className="grid grid-cols-2 gap-2 mb-2">
-                                            <div className="bg-slate-700/50 rounded p-2 text-sm">
-                                                <p className="text-xs text-slate-400 mb-1">{o.line_analysis.bookmaker}</p>
-                                                <p>Line: <span className="text-blue-400">{o.line_analysis.bookmaker_line}</span></p>
-                                                <p>Odds: <span className="text-blue-400">{o.line_analysis.odds}</span></p>
-                                            </div>
-                                            <div className="bg-slate-700/50 rounded p-2 text-sm border border-yellow-500/30">
-                                                <p className="text-xs text-yellow-400 mb-1">BetOnline</p>
-                                                <div className="flex items-center gap-1 mb-1">
-                                                    <span className="text-xs">Line:</span>
-                                                    <input type="number" step="0.5" value={m.line} placeholder="—"
-                                                        onChange={e => update(i, 'line', e.target.value)}
-                                                        className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-14 text-yellow-400 text-sm"/>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-xs">Odds:</span>
-                                                    <input type="number" value={m.odds} placeholder="—"
-                                                        onChange={e => update(i, 'odds', e.target.value)}
-                                                        className="bg-slate-600 border border-yellow-500/30 rounded px-1 py-0.5 w-14 text-yellow-400 text-sm"/>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Calculated values */}
-                                        {hasManual && (
-                                            <div className="grid grid-cols-3 gap-1 text-center text-xs mb-2">
-                                                <div className="bg-slate-700 rounded p-1.5">
-                                                    <p className="text-slate-400">Line Δ</p>
-                                                    <p className={`font-bold ${lineDiff === 0 ? 'text-white' : lineDiff > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                                        {lineDiff > 0 ? '+' : ''}{lineDiff.toFixed(1)}
-                                                    </p>
-                                                </div>
-                                                <div className="bg-slate-700 rounded p-1.5">
-                                                    <p className="text-slate-400">Edge</p>
-                                                    <p className={`font-bold ${edge >= 5 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {edge.toFixed(1)}%
-                                                    </p>
-                                                </div>
-                                                <div className="bg-slate-700 rounded p-1.5">
-                                                    <p className="text-slate-400">EV</p>
-                                                    <p className={`font-bold ${ev >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {ev >= 0 ? '+' : ''}{ev.toFixed(1)}%
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* More stats */}
-                                        <div className="grid grid-cols-3 gap-1 text-center text-xs">
-                                            <div className="bg-slate-700/30 rounded p-1">
-                                                <p className="text-slate-500">R²</p>
-                                                <p className={o.deep_stats.r_squared >= 0.1 ? 'text-green-400' : 'text-orange-400'}>
-                                                    {o.deep_stats.r_squared}
-                                                </p>
-                                            </div>
-                                            <div className="bg-slate-700/30 rounded p-1">
-                                                <p className="text-slate-500">Games</p>
-                                                <p>{o.deep_stats.games_analyzed}</p>
-                                            </div>
-                                            <div className="bg-slate-700/30 rounded p-1">
-                                                <p className="text-slate-500">Chi²</p>
-                                                <p>{o.deep_stats.chi_ok ? '✅' : '❌'}</p>
-                                            </div>
-                                        </div>
-
-                                        {hasManual && edge >= 5 && ev > 0 && isReliable && (
-                                            <div className="mt-2 bg-green-900/50 border border-green-500 rounded p-2 text-center">
-                                                <p className="text-green-400 font-bold">✅ BET VALIDÉ</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
                 </div>
+            )}
 
-                {!loading && opps.length === 0 && !error && (
-                    <div className="text-center text-slate-500 py-12">
-                        <p className="text-4xl mb-2">🏀</p>
-                        <p>Clique Scan pour analyser</p>
+            {topPicks.length === 0 && opps.length > 0 && (
+                <div className="no-picks">
+                    <p>⚠️ Aucun pick fiable trouvé</p>
+                </div>
+            )}
+
+            {opps.map((o, i) => {
+                const m = manual[i] || { line: '', odds: '' };
+                const rel = getReliability(o);
+                const adj = getAdjProb(o);
+                const raw = o.line_analysis?.recommendation === 'OVER' ? o.line_analysis?.over_probability : o.line_analysis?.under_probability;
+                const isExp = expanded[i];
+                const hasM = m.line && m.odds;
+                const edge = calcEdge(o, m);
+                const ev = calcEV(o, m);
+                const lineDiff = hasM ? parseFloat(m.line) - o.line_analysis?.bookmaker_line : null;
+                const isValid = hasM && edge >= 5 && ev > 0 && rel >= 40;
+
+                return (
+                    <div key={i} className={'card' + (rel < 40 ? ' unreliable' : '')}>
+                        <div className="card-header">
+                            <div>
+                                <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                    <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>
+                                        {o.line_analysis?.recommendation}
+                                    </span>
+                                    <span className="card-title">{o.player}</span>
+                                </div>
+                                <div className="card-team">{o.team} • Line: {o.line_analysis?.bookmaker_line}</div>
+                            </div>
+                            <div style={{textAlign:'right'}}>
+                                <div className={'card-prob ' + (rel >= 40 ? 'good' : 'bad')}>{adj.toFixed(0)}%</div>
+                                <div className="card-fiab">Fiab: <span className={rel >= 40 ? 'stat-val green' : 'stat-val orange'}>{rel}%</span></div>
+                            </div>
+                        </div>
+
+                        {rel < 40 && <div className="warning">⚠️ Données volatiles - prob ajustée vers 50%</div>}
+
+                        <div className="stats-row">
+                            <span className="stat-item">L5: <span className={'stat-val' + (o.deep_stats?.avg_last_5 === 0 ? ' orange' : '')}>{o.deep_stats?.avg_last_5}</span></span>
+                            <span className="stat-item">Mean: <span className="stat-val">{o.deep_stats?.clean_mean}</span></span>
+                            <span className="stat-item">σ: <span className="stat-val cyan">{o.deep_stats?.std}</span></span>
+                            <span className="stat-item">Cons: <span className={'stat-val' + (o.deep_stats?.consistency > 40 ? ' green' : ' orange')}>{o.deep_stats?.consistency}%</span></span>
+                        </div>
+
+                        <button className="expand-btn" onClick={() => setExpanded(p => ({...p, [i]: !p[i]}))}>
+                            {isExp ? '▲ Fermer' : '▼ BetOnline + Détails'}
+                        </button>
+
+                        {isExp && (
+                            <div className="details">
+                                <div className="grid-2">
+                                    <div className="box">
+                                        <div className="box-title">{o.line_analysis?.bookmaker}</div>
+                                        <div>Line: <span style={{color:'#60a5fa'}}>{o.line_analysis?.bookmaker_line}</span></div>
+                                        <div>Odds: <span style={{color:'#60a5fa'}}>{o.line_analysis?.odds}</span></div>
+                                    </div>
+                                    <div className="box box-yellow">
+                                        <div className="box-title">BetOnline</div>
+                                        <div className="input-row">
+                                            <span>Line:</span>
+                                            <input className="input-sm" type="number" step="0.5" value={m.line} placeholder="—"
+                                                onChange={e => setManual(p => ({...p, [i]: {...p[i], line: e.target.value}}))} />
+                                        </div>
+                                        <div className="input-row">
+                                            <span>Odds:</span>
+                                            <input className="input-sm" type="number" value={m.odds} placeholder="—"
+                                                onChange={e => setManual(p => ({...p, [i]: {...p[i], odds: e.target.value}}))} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {hasM && (
+                                    <div className="calc-grid">
+                                        <div className="calc-box">
+                                            <div className="calc-label">Line Δ</div>
+                                            <div className={'calc-val ' + (lineDiff > 0 ? 'red' : lineDiff < 0 ? 'green' : '')}>
+                                                {lineDiff > 0 ? '+' : ''}{lineDiff?.toFixed(1)}
+                                            </div>
+                                        </div>
+                                        <div className="calc-box">
+                                            <div className="calc-label">Edge</div>
+                                            <div className={'calc-val ' + (edge >= 5 ? 'green' : 'red')}>{edge?.toFixed(1)}%</div>
+                                        </div>
+                                        <div className="calc-box">
+                                            <div className="calc-label">EV</div>
+                                            <div className={'calc-val ' + (ev >= 0 ? 'green' : 'red')}>{ev >= 0 ? '+' : ''}{ev?.toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div style={{marginTop:'8px',fontSize:'11px',color:'#64748b'}}>
+                                    Prob brute: {raw}% → Ajustée: {adj.toFixed(0)}%
+                                </div>
+
+                                {isValid && <div className="bet-valid">✅ BET VALIDÉ</div>}
+                            </div>
+                        )}
                     </div>
-                
+                );
+            })}
+
+            {!loading && opps.length === 0 && !error && (
+                <div className="empty">
+                    <div className="empty-icon">🏀</div>
+                    <p>Clique Scan pour analyser</p>
+                </div>
+            )}
+
+            {opps.length > 0 && (
+                <div className="legend">
+                    <p><strong>📊 Légende:</strong></p>
+                    <p><span style={{color:'#4ade80'}}>Prob ajustée</span> = prob historique × fiabilité</p>
+                    <p><span style={{color:'#22d3ee'}}>σ</span> = volatilité (petit = stable)</p>
+                    <p><span style={{color:'white'}}>Cons</span> = consistance (haut = fiable)</p>
+                    <p><span style={{color:'#fb923c'}}>⚠️</span> = données trop volatiles pour prédire</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
