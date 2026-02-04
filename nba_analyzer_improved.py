@@ -1,7 +1,8 @@
 """
-NBA Betting Analyzer v9.0
-- Analyzes ALL players (no 15 limit)
-- Added: rest days, pace, fatigue, adjusted probabilities
+NBA Betting Analyzer v9.1
+- All players analysis
+- Game-by-game history included
+- Rest days, pace, fatigue adjustments
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -24,7 +25,6 @@ BDL_BASE_URL = "https://api.balldontlie.io/v1"
 
 PLAYER_ID_CACHE = {}
 PLAYER_GAMES_CACHE = {}
-DEBUG_LOG = []
 
 DEFENSIVE_RATINGS = {
     'Oklahoma City Thunder': 105.8, 'OKC': 105.8,
@@ -115,13 +115,6 @@ def to_python(obj):
     return obj
 
 
-def log_debug(msg):
-    ts = datetime.now().strftime('%H:%M:%S')
-    DEBUG_LOG.append(f"[{ts}] {msg}")
-    if len(DEBUG_LOG) > 200:
-        DEBUG_LOG.pop(0)
-
-
 def normalize_name(name):
     return name.lower().strip().replace('.', '').replace("'", "")
 
@@ -202,16 +195,20 @@ def get_player_game_log(player_id, stat_type='points'):
     cache_key = f"{player_id}_{stat_type}"
     if cache_key in PLAYER_GAMES_CACHE:
         return PLAYER_GAMES_CACHE[cache_key]
+    
     stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
     stat_col = stat_map.get(stat_type, 'pts')
-    data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2025, "per_page": 30})
+    
+    data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2025, "per_page": 50})
     if not data or 'data' not in data:
         return None
+    
     games = []
     for game in data['data']:
         stat_val = game.get(stat_col)
         if stat_val is None:
             continue
+        
         mins = game.get('min', '0') or '0'
         if isinstance(mins, str) and ':' in mins:
             parts = mins.split(':')
@@ -221,12 +218,20 @@ def get_player_game_log(player_id, stat_type='points'):
                 mins = float(mins)
             except:
                 mins = 0
+        
         game_data = game.get('game', {})
+        home_team = game_data.get('home_team_id')
+        away_team = game_data.get('visitor_team_id')
+        player_team_id = game.get('team', {}).get('id') if isinstance(game.get('team'), dict) else None
+        is_home = player_team_id == home_team
+        
         games.append({
             'stat': float(stat_val),
             'minutes': float(mins),
-            'date': str(game_data.get('date', '') or '')
+            'date': str(game_data.get('date', '') or ''),
+            'is_home': is_home
         })
+    
     games.sort(key=lambda x: x['date'], reverse=True)
     PLAYER_GAMES_CACHE[cache_key] = games
     return games if games else None
@@ -264,46 +269,88 @@ def calculate_fatigue_factor(games):
         return 0.5
     return 0
 
+
+# PART 2 CONTINUES BELOW - analyze_game_log, get_nba_games, etc.# PART 2 - Add this after Part 1
+
 def analyze_game_log(games, line, opponent=None):
     if not games or len(games) < 5:
-        return None
+        return None, None
+    
     values = [float(g['stat']) for g in games if g['stat'] is not None]
     if len(values) < 5:
-        return None
+        return None, None
+    
     arr = np.array(values, dtype=float)
-    mean_val, std_val, median_val = float(np.mean(arr)), float(np.std(arr)), float(np.median(arr))
+    mean_val = float(np.mean(arr))
+    std_val = float(np.std(arr))
+    median_val = float(np.median(arr))
+    
     q1, q3 = float(np.percentile(arr, 25)), float(np.percentile(arr, 75))
     iqr = q3 - q1
     clean = arr[(arr >= q1-1.5*iqr) & (arr <= q3+1.5*iqr)]
     clean_mean = float(np.mean(clean)) if len(clean) > 0 else mean_val
     clean_std = float(np.std(clean)) if len(clean) > 0 else std_val
+    
     try:
         slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(np.arange(len(arr)), arr)
-        r_squared, trend_slope = round(float(r_value ** 2), 3), round(float(slope), 3)
+        r_squared = round(float(r_value ** 2), 3)
+        trend_slope = round(float(slope), 3)
     except:
         r_squared, trend_slope = 0.0, 0.0
-    over_count, total = int(np.sum(arr > line)), len(values)
+    
+    over_count = int(np.sum(arr > line))
+    total = len(values)
     over_prob = (over_count / total) * 100
+    
     try:
         chi2, p_val = scipy_stats.chisquare([over_count, total-over_count], [total/2, total/2])
-        chi_ok, p_val = float(p_val) > 0.05, float(p_val)
+        chi_ok = float(p_val) > 0.05
+        p_val = float(p_val)
     except:
         chi_ok, p_val = True, 1.0
-    rest_days, b2b, fatigue = calculate_rest_days(games), is_back_to_back(games), calculate_fatigue_factor(games)
+    
+    rest_days = calculate_rest_days(games)
+    b2b = is_back_to_back(games)
+    fatigue = calculate_fatigue_factor(games)
     rest_impact = 1.0 if rest_days >= 3 else (0.5 if rest_days == 2 else (-1.5 if b2b else 0))
+    
     opp_def_impact, opp_pace_impact = 0, 0
     if opponent:
         def_info = get_defense_category(get_defense_rating(opponent))
-        opp_def_impact, opp_pace_impact = def_info['impact'], get_pace_impact(get_team_pace(opponent))
+        opp_def_impact = def_info['impact']
+        opp_pace_impact = get_pace_impact(get_team_pace(opponent))
+    
     total_adj = rest_impact + fatigue + opp_def_impact + opp_pace_impact
     adjusted_mean = clean_mean + total_adj
-    adjusted_over_prob = (1 - scipy_stats.norm.cdf((line - adjusted_mean) / clean_std)) * 100 if clean_std > 0 else over_prob
-    kelly = min(25, max(0, ((adjusted_over_prob/100) - 0.524) / 0.91 * 100)) if adjusted_over_prob > 52.4 else 0
+    
+    if clean_std > 0:
+        adjusted_over_prob = (1 - scipy_stats.norm.cdf((line - adjusted_mean) / clean_std)) * 100
+    else:
+        adjusted_over_prob = over_prob
+    
+    kelly = 0
+    if adjusted_over_prob > 52.4:
+        kelly = min(25, max(0, ((adjusted_over_prob/100) - 0.524) / 0.91 * 100))
+    
     trend_dir = 'STABLE'
     if len(values) >= 10:
-        recent_5, prev_5 = float(np.mean(arr[:5])), float(np.mean(arr[5:10]))
-        trend_dir = 'UP' if recent_5 > prev_5 * 1.05 else ('DOWN' if recent_5 < prev_5 * 0.95 else 'STABLE')
-    return {
+        recent_5 = float(np.mean(arr[:5]))
+        prev_5 = float(np.mean(arr[5:10]))
+        if recent_5 > prev_5 * 1.05:
+            trend_dir = 'UP'
+        elif recent_5 < prev_5 * 0.95:
+            trend_dir = 'DOWN'
+    
+    recent_games = []
+    for g in games[:10]:
+        try:
+            date_str = g['date'][:10] if g['date'] else ''
+            date_fmt = datetime.strptime(date_str, '%Y-%m-%d').strftime('%d/%m') if date_str else '??'
+        except:
+            date_fmt = '??'
+        recent_games.append({'date': date_fmt, 'stat': round(g['stat'], 1), 'mins': round(g['minutes'], 0), 'home': g.get('is_home', True)})
+    
+    analysis = {
         'games_analyzed': int(total), 'mean': round(mean_val, 1), 'median': round(median_val, 1),
         'std': round(std_val, 2), 'clean_mean': round(clean_mean, 1), 'clean_std': round(clean_std, 2),
         'adjusted_mean': round(adjusted_mean, 1), 'outliers_removed': int(len(values) - len(clean)),
@@ -320,6 +367,7 @@ def analyze_game_log(games, line, opponent=None):
         'fatigue_impact': round(fatigue, 1), 'defense_impact': round(opp_def_impact, 1),
         'pace_impact': round(opp_pace_impact, 1), 'total_adjustment': round(total_adj, 1)
     }
+    return analysis, recent_games
 
 
 def get_nba_games():
@@ -370,7 +418,6 @@ def get_player_props(stat_type='points'):
                 all_props.extend(player_best.values())
         except:
             continue
-    log_debug(f"Found {len(all_props)} {stat_type} props")
     return all_props, game_info
 
 
@@ -381,16 +428,16 @@ def analyze_player_prop(player_name, stat_type, line, opponent=None):
     games = get_player_game_log(player_info['id'], stat_type)
     if not games:
         return None
-    analysis = analyze_game_log(games, line, opponent)
+    analysis, recent_games = analyze_game_log(games, line, opponent)
     if not analysis:
         return None
     return {'player_id': int(player_info['id']), 'player_name': str(player_info['name']),
-            'team': str(player_info.get('team', 'N/A')), 'position': str(player_info.get('position', 'N/A')), 'analysis': analysis}
+            'team': str(player_info.get('team', 'N/A')), 'position': str(player_info.get('position', 'N/A')),
+            'analysis': analysis, 'recent_games': recent_games}
 
 
 def deep_analyze_props(props, game_info, stat_type, min_edge=5):
-    opps, analyzed = [], 0
-    log_debug(f"Analyzing ALL {len(props)} props...")
+    opps = []
     for prop in props:
         gi_data = game_info.get(prop['game_id'], {})
         opponent = gi_data.get('away_team', '') or gi_data.get('home_team', '')
@@ -398,15 +445,16 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
         unders = [l for l in prop['lines'] if l['type'] == 'Under']
         if not overs:
             continue
-        best_over, best_under = min(overs, key=lambda x: x['line']), max(unders, key=lambda x: x['line']) if unders else None
+        best_over = min(overs, key=lambda x: x['line'])
+        best_under = max(unders, key=lambda x: x['line']) if unders else None
         line = best_over['line']
         result = analyze_player_prop(prop['player'], stat_type, line, opponent)
-        analyzed += 1
         if not result:
             continue
-        a = result['analysis']
+        a, recent_games = result['analysis'], result.get('recent_games', [])
         adj_over, adj_under = a['adjusted_over_probability'], a['adjusted_under_probability']
-        oe, ue = ((a['adjusted_mean'] - line) / line) * 100, ((line - a['adjusted_mean']) / line) * 100
+        oe = ((a['adjusted_mean'] - line) / line) * 100
+        ue = ((line - a['adjusted_mean']) / line) * 100
         if adj_over > 52 and oe >= min_edge:
             rec, edge, bl, prob = 'OVER', oe, best_over, adj_over
         elif adj_under > 52 and ue >= min_edge:
@@ -417,7 +465,8 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
         sc += (1 if a['consistency'] >= 70 else 0) + (1 if a['chi_ok'] else 0) + (1 if a['games_analyzed'] >= 15 else 0)
         sc += (1 if a['r_squared'] >= 0.1 else 0) + (1 if not a['is_b2b'] else 0)
         conf = 'HIGH' if sc >= 6 else ('MEDIUM' if sc >= 3 else 'LOW')
-        def_rating, opp_pace = get_defense_rating(opponent) if opponent else LEAGUE_AVG_DEF_RATING, get_team_pace(opponent) if opponent else LEAGUE_AVG_PACE
+        def_rating = get_defense_rating(opponent) if opponent else LEAGUE_AVG_DEF_RATING
+        opp_pace = get_team_pace(opponent) if opponent else LEAGUE_AVG_PACE
         def_info = get_defense_category(def_rating)
         opps.append({
             'player': str(result['player_name']), 'team': str(result.get('team', 'N/A')),
@@ -438,9 +487,9 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
                 'avg_last_10': float(a['avg_last_10']), 'r_squared': float(a['r_squared']), 'trend_slope': float(a['trend_slope']),
                 'trend': str(a['trend']), 'consistency': float(a['consistency']), 'games_analyzed': int(a['games_analyzed']),
                 'outliers_removed': int(a['outliers_removed']), 'over_count': int(a['over_count']), 'under_count': int(a['under_count']),
-                'chi_ok': a['chi_ok'], 'chi_p_value': float(a['chi_p_value'])}
+                'chi_ok': a['chi_ok'], 'chi_p_value': float(a['chi_p_value'])},
+            'recent_games': recent_games
         })
-    log_debug(f"Analyzed {analyzed}, found {len(opps)} opportunities")
     opps.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
     return opps
 
@@ -448,11 +497,11 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
 @app.route('/api/daily-opportunities', methods=['GET'])
 def daily_opportunities():
     try:
-        min_edge, min_conf = float(request.args.get('min_edge', 5)), request.args.get('min_confidence', 'LOW')
+        min_edge = float(request.args.get('min_edge', 5))
+        min_conf = request.args.get('min_confidence', 'LOW')
         stat_type = request.args.get('stat_type', 'points')
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
-        log_debug(f"=== SCAN v9.0: {stat_type} (ALL PLAYERS) ===")
         if not BALLDONTLIE_API_KEY:
             return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set'}), 500
         props, gi = get_player_props(stat_type)
@@ -461,7 +510,7 @@ def daily_opportunities():
         opps = deep_analyze_props(props, gi, stat_type, min_edge)
         cl = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
         filtered = [o for o in opps if cl.get(o['line_analysis']['bet_confidence'], 0) >= cl.get(min_conf, 1)]
-        return jsonify(to_python({'status': 'SUCCESS', 'version': '9.0', 'stat_type': str(stat_type),
+        return jsonify(to_python({'status': 'SUCCESS', 'version': '9.1', 'stat_type': str(stat_type),
             'total_props': int(len(props)), 'players_analyzed': int(len(props)), 'opportunities_found': int(len(filtered)),
             'opportunities': filtered, 'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'season': '2025-26'}))
     except Exception as e:
@@ -471,7 +520,7 @@ def daily_opportunities():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy', 'version': '9.0', 'features': ['all_players', 'rest_days', 'pace', 'fatigue']})
+    return jsonify({'status': 'healthy', 'version': '9.1', 'features': ['all_players', 'game_history', 'rest_days', 'pace']})
 
 
 @app.route('/api/odds/usage', methods=['GET'])
@@ -485,10 +534,10 @@ def get_usage():
 
 @app.route('/')
 def home():
-    return jsonify({'app': 'NBA Betting Analyzer', 'version': '9.0'})
+    return jsonify({'app': 'NBA Betting Analyzer', 'version': '9.1'})
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"🏀 NBA Analyzer v9.0 - ALL PLAYERS")
+    print(f"🏀 NBA Analyzer v9.1 - Game History")
     app.run(host='0.0.0.0', port=port, debug=False)
