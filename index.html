@@ -13,7 +13,7 @@
     <div id="root"></div>
     <script type="text/babel">
 const { useState } = React;
-const API_URL = 'https://nba-betting-kz0o.onrender.com';
+const API_URL = 'https://nba-betting-1.onrender.com';
 
 function App() {
     const [opps, setOpps] = useState([]);
@@ -23,12 +23,19 @@ function App() {
     const [minEdge, setMinEdge] = useState(5);
     const [manual, setManual] = useState({});
     const [apiUsage, setApiUsage] = useState(null);
+    const [status, setStatus] = useState('');
 
     const scan = async () => {
         setLoading(true);
         setError(null);
+        setStatus('⏳ Réveil du serveur (30-60s)...');
         try {
+            await fetch(`${API_URL}/api/health`).catch(() => {});
+            setStatus('🔍 Scan en cours...');
+            
             const res = await fetch(`${API_URL}/api/daily-opportunities?stat_type=${statType}&min_edge=${minEdge}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            
             const data = await res.json();
             if (data.status === 'SUCCESS') {
                 setOpps(data.opportunities || []);
@@ -37,11 +44,14 @@ function App() {
                     init[i] = { line: o.line_analysis.bookmaker_line, odds: o.line_analysis.odds };
                 });
                 setManual(init);
+                setStatus(`✅ ${data.opportunities?.length || 0} opportunités`);
             } else {
                 setError(data.message || 'Erreur');
             }
-            const usage = await fetch(`${API_URL}/api/odds/usage`);
-            setApiUsage(await usage.json());
+            try {
+                const usage = await fetch(`${API_URL}/api/odds/usage`);
+                setApiUsage(await usage.json());
+            } catch(e) {}
         } catch (e) {
             setError(e.message);
         }
@@ -74,9 +84,13 @@ function App() {
                 <p className="text-slate-400 text-center text-sm mb-4">Compare API vs BetOnline</p>
 
                 {apiUsage && (
-                    <p className="text-center text-xs text-slate-500 mb-4">
+                    <p className="text-center text-xs text-slate-500 mb-2">
                         API: {apiUsage.used}/{parseInt(apiUsage.used||0)+parseInt(apiUsage.remaining||0)} calls
                     </p>
+                )}
+                
+                {status && !error && (
+                    <p className="text-center text-sm text-blue-400 mb-4">{status}</p>
                 )}
 
                 <div className="bg-slate-800 rounded-lg p-4 mb-4">
