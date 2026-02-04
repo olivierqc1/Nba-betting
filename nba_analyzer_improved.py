@@ -1,6 +1,6 @@
 """
-NBA Betting Analyzer v8.5.5
-- Fixed ALL numpy type conversions
+NBA Betting Analyzer v8.6.0
+- Fixed NaN/Inf JSON serialization
 - Ultra-defensive JSON serialization
 """
 from flask import Flask, jsonify, request
@@ -12,6 +12,7 @@ import numpy as np
 from scipy import stats as scipy_stats
 import time
 import json
+import math
 
 app = Flask(__name__)
 CORS(app)
@@ -60,7 +61,7 @@ DEFENSIVE_RATINGS = {
 
 
 def to_python(obj):
-    """Convert numpy types to Python native types recursively"""
+    """Convert numpy types to Python native types recursively, handling NaN/Inf"""
     if isinstance(obj, dict):
         return {k: to_python(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -68,11 +69,18 @@ def to_python(obj):
     elif isinstance(obj, (np.integer, np.int64, np.int32)):
         return int(obj)
     elif isinstance(obj, (np.floating, np.float64, np.float32)):
-        return float(obj)
+        val = float(obj)
+        if math.isnan(val) or math.isinf(val):
+            return 0.0
+        return val
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+        return obj
     elif isinstance(obj, (np.bool_, bool)):
         return True if obj else False
     elif isinstance(obj, np.ndarray):
-        return obj.tolist()
+        return [to_python(v) for v in obj.tolist()]
     else:
         return obj
 
@@ -327,6 +335,9 @@ def get_player_props(stat_type='points'):
     return all_props, game_info
 
 
+# === FIN PARTIE 1 - COLLE LA PARTIE 2 EN DESSOUS ===
+# === PARTIE 2 - COLLE APRÈS LA PARTIE 1 ===
+
 def analyze_player_prop(player_name, stat_type, line):
     player_info = search_player(player_name)
     if not player_info:
@@ -352,7 +363,6 @@ def analyze_player_prop(player_name, stat_type, line):
         'games_played': games_played,
         'analysis': analysis
     }
-
 
 
 def deep_analyze_props(props, game_info, stat_type, min_edge=5):
@@ -483,7 +493,7 @@ def daily_opportunities():
         stat_type = request.args.get('stat_type', 'points')
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
-        log_debug(f"=== SCAN v8.5.5: {stat_type} ===")
+        log_debug(f"=== SCAN v8.6.0: {stat_type} ===")
         log_debug(f"BDL key set: {bool(BALLDONTLIE_API_KEY)}")
         if not BALLDONTLIE_API_KEY:
             return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set', 'debug_log': DEBUG_LOG[-15:]}), 500
@@ -517,7 +527,7 @@ def daily_opportunities():
 
 @app.route('/api/debug', methods=['GET'])
 def debug_endpoint():
-    r = {'timestamp': datetime.now().isoformat(), 'tests': {}, 'version': '8.5.5'}
+    r = {'timestamp': datetime.now().isoformat(), 'tests': {}, 'version': '8.6.0'}
     r['env_check'] = {
         'BALLDONTLIE_API_KEY': True if BALLDONTLIE_API_KEY else False,
         'ODDS_API_KEY': True if ODDS_API_KEY else False,
@@ -553,7 +563,7 @@ def get_usage():
 def health():
     return jsonify({
         'status': 'healthy',
-        'version': '8.5.5',
+        'version': '8.6.0',
         'data_source': 'balldontlie.io',
         'season': '2024-25',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False,
@@ -565,7 +575,7 @@ def health():
 def home():
     return jsonify({
         'app': 'NBA Betting Analyzer',
-        'version': '8.5.5',
+        'version': '8.6.0',
         'season': '2024-25',
         'data_source': 'balldontlie.io',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False
@@ -574,7 +584,7 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting NBA Analyzer v8.5.5")
+    print(f"Starting NBA Analyzer v8.6.0")
     print(f"BALLDONTLIE_API_KEY set: {bool(BALLDONTLIE_API_KEY)}")
     print(f"ODDS_API_KEY set: {bool(ODDS_API_KEY)}")
     app.run(host='0.0.0.0', port=port, debug=False)
