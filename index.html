@@ -21,16 +21,33 @@
         .error { background: rgba(220,38,38,0.3); border: 1px solid #dc2626; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 14px; }
         .top-picks { background: linear-gradient(to right, rgba(22,101,52,0.5), rgba(6,78,59,0.5)); border: 2px solid #22c55e; border-radius: 12px; padding: 12px; margin-bottom: 16px; }
         .top-picks h2 { color: #4ade80; font-size: 16px; margin-bottom: 10px; }
-        .pick-row { display: flex; justify-content: space-between; align-items: center; background: rgba(30,41,59,0.8); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
-        .pick-left { display: flex; align-items: center; gap: 8px; }
+        .top-pick-card { background: rgba(30,41,59,0.9); border-radius: 10px; padding: 10px; margin-bottom: 8px; border: 1px solid #334155; }
+        .top-pick-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .top-pick-left { display: flex; align-items: center; gap: 8px; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .badge-over { background: #16a34a; }
         .badge-under { background: #dc2626; }
-        .pick-name { font-weight: 600; font-size: 14px; }
-        .pick-line { color: #94a3b8; font-size: 12px; }
-        .pick-right { text-align: right; }
-        .pick-prob { color: #4ade80; font-weight: bold; }
-        .pick-fiab { color: #94a3b8; font-size: 11px; }
+        .top-pick-name { font-weight: bold; font-size: 14px; }
+        .top-pick-team { color: #64748b; font-size: 11px; }
+        .top-pick-right { text-align: right; }
+        .top-pick-prob { color: #4ade80; font-weight: bold; font-size: 18px; }
+        .top-pick-edge { color: #fbbf24; font-size: 12px; }
+        .top-pick-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: rgba(51,65,85,0.5); border-radius: 6px; padding: 6px; margin-bottom: 6px; }
+        .top-stat { text-align: center; }
+        .top-stat-label { color: #64748b; font-size: 9px; }
+        .top-stat-val { font-weight: 600; font-size: 12px; }
+        .cyan { color: #22d3ee; }
+        .green { color: #4ade80; }
+        .orange { color: #fb923c; }
+        .yellow { color: #fbbf24; }
+        .red { color: #f87171; }
+        .game-history { display: flex; gap: 3px; align-items: flex-end; height: 40px; background: rgba(15,23,42,0.5); border-radius: 4px; padding: 4px; }
+        .game-bar { flex: 1; border-radius: 2px; min-width: 12px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; }
+        .game-bar-fill { width: 100%; border-radius: 2px 2px 0 0; }
+        .game-bar-over { background: linear-gradient(to top, #16a34a, #22c55e); }
+        .game-bar-under { background: linear-gradient(to top, #dc2626, #f87171); }
+        .game-line { position: absolute; left: 0; right: 0; height: 2px; background: #fbbf24; z-index: 10; }
+        .history-legend { display: flex; justify-content: space-between; font-size: 9px; color: #64748b; margin-top: 4px; }
         .no-picks { background: rgba(234,179,8,0.2); border: 1px solid #eab308; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px; }
         .no-picks p { color: #fbbf24; font-size: 14px; }
         .card { background: #1e293b; border-radius: 10px; padding: 12px; margin-bottom: 8px; border: 1px solid #334155; }
@@ -43,12 +60,10 @@
         .card-prob.bad { color: #f97316; }
         .card-fiab { color: #64748b; font-size: 11px; }
         .warning { color: #fb923c; font-size: 11px; margin-top: 4px; }
-        .stats-row { display: flex; justify-content: space-between; background: rgba(51,65,85,0.3); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 12px; }
-        .stat-item { color: #94a3b8; }
-        .stat-val { color: white; font-weight: 500; }
-        .stat-val.cyan { color: #22d3ee; }
-        .stat-val.green { color: #4ade80; }
-        .stat-val.orange { color: #fb923c; }
+        .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: rgba(51,65,85,0.3); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 11px; }
+        .stat-item { text-align: center; }
+        .stat-label { color: #64748b; font-size: 9px; }
+        .stat-val { font-weight: 600; }
         .expand-btn { width: 100%; background: none; border: none; color: #64748b; font-size: 11px; padding: 6px; cursor: pointer; }
         .expand-btn:hover { color: white; }
         .details { margin-top: 10px; padding-top: 10px; border-top: 1px solid #334155; }
@@ -63,13 +78,19 @@
         .calc-box { background: #334155; border-radius: 4px; padding: 6px; }
         .calc-label { color: #64748b; }
         .calc-val { font-weight: bold; margin-top: 2px; }
-        .calc-val.green { color: #4ade80; }
-        .calc-val.red { color: #f87171; }
         .bet-valid { background: rgba(22,101,52,0.4); border: 1px solid #22c55e; border-radius: 6px; padding: 8px; text-align: center; color: #4ade80; font-weight: bold; margin-top: 8px; }
+        .history-section { margin-top: 10px; }
+        .history-title { font-size: 11px; color: #94a3b8; margin-bottom: 6px; }
+        .history-table { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+        .history-cell { text-align: center; padding: 4px 2px; border-radius: 4px; font-size: 10px; }
+        .history-cell.over { background: rgba(22,163,74,0.3); color: #4ade80; }
+        .history-cell.under { background: rgba(220,38,38,0.3); color: #f87171; }
+        .history-date { color: #64748b; font-size: 8px; }
         .legend { background: rgba(30,41,59,0.5); border-radius: 8px; padding: 12px; margin-top: 16px; font-size: 11px; color: #94a3b8; }
         .legend p { margin-bottom: 4px; }
         .empty { text-align: center; color: #64748b; padding: 60px 0; }
         .empty-icon { font-size: 48px; margin-bottom: 10px; }
+        .section-title { color: #94a3b8; font-size: 12px; margin: 16px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -77,6 +98,56 @@
     <script type="text/babel">
 const { useState } = React;
 const API = 'https://nba-betting-1.onrender.com';
+
+function GameHistoryBars({ games, line }) {
+    if (!games || games.length === 0) return null;
+    const maxStat = Math.max(...games.map(g => g.stat), line * 1.2);
+    return (
+        <div>
+            <div className="game-history">
+                {games.slice(0, 10).reverse().map((g, i) => {
+                    const height = (g.stat / maxStat) * 100;
+                    const isOver = g.stat > line;
+                    const linePos = (line / maxStat) * 100;
+                    return (
+                        <div key={i} className="game-bar" style={{height: '100%'}}>
+                            <div className={'game-bar-fill ' + (isOver ? 'game-bar-over' : 'game-bar-under')} style={{height: height + '%'}} />
+                            <div className="game-line" style={{bottom: linePos + '%'}} />
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="history-legend">
+                <span>← Ancien</span>
+                <span style={{color:'#fbbf24'}}>— Line: {line}</span>
+                <span>Récent →</span>
+            </div>
+        </div>
+    );
+}
+
+function GameHistoryTable({ games, line }) {
+    if (!games || games.length === 0) return null;
+    return (
+        <div className="history-section">
+            <div className="history-title">📅 10 derniers matchs:</div>
+            <div className="history-table">
+                {games.slice(0, 10).map((g, i) => {
+                    const isOver = g.stat > line;
+                    return (
+                        <div key={i} className={'history-cell ' + (isOver ? 'over' : 'under')}>
+                            <div style={{fontWeight:'bold'}}>{g.stat}</div>
+                            <div className="history-date">{g.date}</div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+// PART 2 CONTINUES - App component
+// PART 2 - Add this after Part 1 (inside the same <script type="text/babel"> tag)
 
 function App() {
     const [opps, setOpps] = useState([]);
@@ -127,9 +198,7 @@ function App() {
 
     const getAdjProb = (o) => {
         const rel = getReliability(o);
-        const raw = o.line_analysis?.recommendation === 'OVER' 
-            ? o.line_analysis?.over_probability 
-            : o.line_analysis?.under_probability;
+        const raw = o.line_analysis?.recommendation === 'OVER' ? o.line_analysis?.over_probability : o.line_analysis?.under_probability;
         return 50 + (raw - 50) * (rel / 100);
     };
 
@@ -159,10 +228,7 @@ function App() {
 
     return (
         <div className="container">
-            <div className="header">
-                <h1>🏀 NBA Analyzer v9</h1>
-            </div>
-
+            <div className="header"><h1>🏀 NBA Analyzer v9.1</h1></div>
             <div className="controls">
                 <select value={stat} onChange={e => setStat(e.target.value)}>
                     <option value="points">Points</option>
@@ -170,12 +236,9 @@ function App() {
                     <option value="rebounds">Rebounds</option>
                 </select>
                 <input type="number" value={minEdge} onChange={e => setMinEdge(e.target.value)} placeholder="Edge" />
-                <button className="btn" onClick={scan} disabled={loading}>
-                    {loading ? '⏳' : '🔍 Scan'}
-                </button>
+                <button className="btn" onClick={scan} disabled={loading}>{loading ? '⏳' : '🔍 Scan'}</button>
             </div>
             {status && <div className="status">{status}</div>}
-
             {error && <div className="error">❌ {error}</div>}
 
             {topPicks.length > 0 && (
@@ -184,32 +247,39 @@ function App() {
                     {topPicks.map((o, i) => {
                         const rel = getReliability(o);
                         const adj = getAdjProb(o);
+                        const ds = o.deep_stats || {};
+                        const line = o.line_analysis?.bookmaker_line || 0;
                         return (
-                            <div key={i} className="pick-row">
-                                <div className="pick-left">
-                                    <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>
-                                        {o.line_analysis?.recommendation}
-                                    </span>
-                                    <div>
-                                        <div className="pick-name">{o.player}</div>
-                                        <div className="pick-line">{o.line_analysis?.bookmaker_line} pts</div>
+                            <div key={i} className="top-pick-card">
+                                <div className="top-pick-header">
+                                    <div className="top-pick-left">
+                                        <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>{o.line_analysis?.recommendation}</span>
+                                        <div>
+                                            <div className="top-pick-name">{o.player}</div>
+                                            <div className="top-pick-team">{o.team} • Line: {line}</div>
+                                        </div>
+                                    </div>
+                                    <div className="top-pick-right">
+                                        <div className="top-pick-prob">{adj.toFixed(0)}%</div>
+                                        <div className="top-pick-edge">Edge: {o.line_analysis?.edge?.toFixed(0)}%</div>
                                     </div>
                                 </div>
-                                <div className="pick-right">
-                                    <div className="pick-prob">{adj.toFixed(0)}%</div>
-                                    <div className="pick-fiab">Fiab: {rel}%</div>
+                                <div className="top-pick-stats">
+                                    <div className="top-stat"><div className="top-stat-label">L5</div><div className="top-stat-val">{ds.avg_last_5}</div></div>
+                                    <div className="top-stat"><div className="top-stat-label">Mean</div><div className="top-stat-val">{ds.clean_mean}</div></div>
+                                    <div className="top-stat"><div className="top-stat-label">σ</div><div className="top-stat-val cyan">{ds.std}</div></div>
+                                    <div className="top-stat"><div className="top-stat-label">R²</div><div className={'top-stat-val ' + (ds.r_squared >= 0.1 ? 'green' : 'orange')}>{ds.r_squared}</div></div>
+                                    <div className="top-stat"><div className="top-stat-label">Cons</div><div className={'top-stat-val ' + (ds.consistency >= 50 ? 'green' : 'yellow')}>{ds.consistency}%</div></div>
                                 </div>
+                                <GameHistoryBars games={o.recent_games} line={line} />
                             </div>
                         );
                     })}
                 </div>
             )}
 
-            {topPicks.length === 0 && opps.length > 0 && (
-                <div className="no-picks">
-                    <p>⚠️ Aucun pick fiable trouvé</p>
-                </div>
-            )}
+            {topPicks.length === 0 && opps.length > 0 && (<div className="no-picks"><p>⚠️ Aucun pick assez fiable</p></div>)}
+            {opps.length > 0 && <div className="section-title">Toutes les opportunités ({opps.length})</div>}
 
             {opps.map((o, i) => {
                 const m = manual[i] || { line: '', odds: '' };
@@ -222,84 +292,65 @@ function App() {
                 const ev = calcEV(o, m);
                 const lineDiff = hasM ? parseFloat(m.line) - o.line_analysis?.bookmaker_line : null;
                 const isValid = hasM && edge >= 5 && ev > 0 && rel >= 40;
+                const ds = o.deep_stats || {};
+                const line = o.line_analysis?.bookmaker_line || 0;
 
                 return (
                     <div key={i} className={'card' + (rel < 40 ? ' unreliable' : '')}>
                         <div className="card-header">
                             <div>
                                 <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                    <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>
-                                        {o.line_analysis?.recommendation}
-                                    </span>
+                                    <span className={'badge ' + (o.line_analysis?.recommendation === 'OVER' ? 'badge-over' : 'badge-under')}>{o.line_analysis?.recommendation}</span>
                                     <span className="card-title">{o.player}</span>
                                 </div>
-                                <div className="card-team">{o.team} • Line: {o.line_analysis?.bookmaker_line}</div>
+                                <div className="card-team">{o.team} • Line: {line} • Edge: {o.line_analysis?.edge?.toFixed(0)}%</div>
                             </div>
                             <div style={{textAlign:'right'}}>
                                 <div className={'card-prob ' + (rel >= 40 ? 'good' : 'bad')}>{adj.toFixed(0)}%</div>
-                                <div className="card-fiab">Fiab: <span className={rel >= 40 ? 'stat-val green' : 'stat-val orange'}>{rel}%</span></div>
+                                <div className="card-fiab">Fiab: <span className={rel >= 40 ? 'green' : 'orange'}>{rel}%</span></div>
                             </div>
                         </div>
-
-                        {rel < 40 && <div className="warning">⚠️ Données volatiles - prob ajustée vers 50%</div>}
-
+                        {rel < 40 && <div className="warning">⚠️ Données volatiles</div>}
                         <div className="stats-row">
-                            <span className="stat-item">L5: <span className={'stat-val' + (o.deep_stats?.avg_last_5 === 0 ? ' orange' : '')}>{o.deep_stats?.avg_last_5}</span></span>
-                            <span className="stat-item">Mean: <span className="stat-val">{o.deep_stats?.clean_mean}</span></span>
-                            <span className="stat-item">σ: <span className="stat-val cyan">{o.deep_stats?.std}</span></span>
-                            <span className="stat-item">Cons: <span className={'stat-val' + (o.deep_stats?.consistency > 40 ? ' green' : ' orange')}>{o.deep_stats?.consistency}%</span></span>
+                            <div className="stat-item"><div className="stat-label">L5</div><div className={'stat-val ' + (ds.avg_last_5 === 0 ? 'orange' : '')}>{ds.avg_last_5}</div></div>
+                            <div className="stat-item"><div className="stat-label">Mean</div><div className="stat-val">{ds.clean_mean}</div></div>
+                            <div className="stat-item"><div className="stat-label">σ</div><div className="stat-val cyan">{ds.std}</div></div>
+                            <div className="stat-item"><div className="stat-label">R²</div><div className={'stat-val ' + (ds.r_squared >= 0.1 ? 'green' : 'orange')}>{ds.r_squared}</div></div>
+                            <div className="stat-item"><div className="stat-label">Cons</div><div className={'stat-val ' + (ds.consistency >= 50 ? 'green' : 'yellow')}>{ds.consistency}%</div></div>
                         </div>
-
-                        <button className="expand-btn" onClick={() => setExpanded(p => ({...p, [i]: !p[i]}))}>
-                            {isExp ? '▲ Fermer' : '▼ BetOnline + Détails'}
-                        </button>
-
+                        <button className="expand-btn" onClick={() => setExpanded(p => ({...p, [i]: !p[i]}))}>{isExp ? '▲ Fermer' : '▼ Historique + BetOnline'}</button>
                         {isExp && (
                             <div className="details">
-                                <div className="grid-2">
+                                <GameHistoryBars games={o.recent_games} line={line} />
+                                <GameHistoryTable games={o.recent_games} line={line} />
+                                <div className="grid-2" style={{marginTop:'10px'}}>
                                     <div className="box">
                                         <div className="box-title">{o.line_analysis?.bookmaker}</div>
-                                        <div>Line: <span style={{color:'#60a5fa'}}>{o.line_analysis?.bookmaker_line}</span></div>
+                                        <div>Line: <span style={{color:'#60a5fa'}}>{line}</span></div>
                                         <div>Odds: <span style={{color:'#60a5fa'}}>{o.line_analysis?.odds}</span></div>
                                     </div>
                                     <div className="box box-yellow">
-                                        <div className="box-title">BetOnline</div>
+                                        <div className="box-title">BetOnline (manuel)</div>
                                         <div className="input-row">
                                             <span>Line:</span>
-                                            <input className="input-sm" type="number" step="0.5" value={m.line} placeholder="—"
-                                                onChange={e => setManual(p => ({...p, [i]: {...p[i], line: e.target.value}}))} />
+                                            <input className="input-sm" type="number" step="0.5" value={m.line} placeholder="—" onChange={e => setManual(p => ({...p, [i]: {...p[i], line: e.target.value}}))} />
                                         </div>
                                         <div className="input-row">
                                             <span>Odds:</span>
-                                            <input className="input-sm" type="number" value={m.odds} placeholder="—"
-                                                onChange={e => setManual(p => ({...p, [i]: {...p[i], odds: e.target.value}}))} />
+                                            <input className="input-sm" type="number" value={m.odds} placeholder="—" onChange={e => setManual(p => ({...p, [i]: {...p[i], odds: e.target.value}}))} />
                                         </div>
                                     </div>
                                 </div>
-
                                 {hasM && (
                                     <div className="calc-grid">
-                                        <div className="calc-box">
-                                            <div className="calc-label">Line Δ</div>
-                                            <div className={'calc-val ' + (lineDiff > 0 ? 'red' : lineDiff < 0 ? 'green' : '')}>
-                                                {lineDiff > 0 ? '+' : ''}{lineDiff?.toFixed(1)}
-                                            </div>
-                                        </div>
-                                        <div className="calc-box">
-                                            <div className="calc-label">Edge</div>
-                                            <div className={'calc-val ' + (edge >= 5 ? 'green' : 'red')}>{edge?.toFixed(1)}%</div>
-                                        </div>
-                                        <div className="calc-box">
-                                            <div className="calc-label">EV</div>
-                                            <div className={'calc-val ' + (ev >= 0 ? 'green' : 'red')}>{ev >= 0 ? '+' : ''}{ev?.toFixed(1)}%</div>
-                                        </div>
+                                        <div className="calc-box"><div className="calc-label">Line Δ</div><div className={'calc-val ' + (lineDiff > 0 ? 'orange' : lineDiff < 0 ? 'green' : '')}>{lineDiff > 0 ? '+' : ''}{lineDiff?.toFixed(1)}</div></div>
+                                        <div className="calc-box"><div className="calc-label">Edge</div><div className={'calc-val ' + (edge >= 5 ? 'green' : 'orange')}>{edge?.toFixed(1)}%</div></div>
+                                        <div className="calc-box"><div className="calc-label">EV</div><div className={'calc-val ' + (ev >= 0 ? 'green' : 'orange')}>{ev >= 0 ? '+' : ''}{ev?.toFixed(1)}%</div></div>
                                     </div>
                                 )}
-
-                                <div style={{marginTop:'8px',fontSize:'11px',color:'#64748b'}}>
-                                    Prob brute: {raw}% → Ajustée: {adj.toFixed(0)}%
+                                <div style={{marginTop:'10px',fontSize:'11px',color:'#64748b',background:'rgba(51,65,85,0.3)',padding:'8px',borderRadius:'6px'}}>
+                                    <strong>Contexte:</strong> Rest {o.context_factors?.rest_days}j | B2B: {o.context_factors?.is_b2b ? '⚠️' : '✅'} | vs {o.defense_analysis?.opponent} ({o.defense_analysis?.category} {o.defense_analysis?.emoji})
                                 </div>
-
                                 {isValid && <div className="bet-valid">✅ BET VALIDÉ</div>}
                             </div>
                         )}
@@ -307,20 +358,14 @@ function App() {
                 );
             })}
 
-            {!loading && opps.length === 0 && !error && (
-                <div className="empty">
-                    <div className="empty-icon">🏀</div>
-                    <p>Clique Scan pour analyser</p>
-                </div>
-            )}
+            {!loading && opps.length === 0 && !error && (<div className="empty"><div className="empty-icon">🏀</div><p>Clique Scan pour analyser</p></div>)}
 
             {opps.length > 0 && (
                 <div className="legend">
                     <p><strong>📊 Légende:</strong></p>
-                    <p><span style={{color:'#4ade80'}}>Prob ajustée</span> = prob historique × fiabilité</p>
-                    <p><span style={{color:'#22d3ee'}}>σ</span> = volatilité (petit = stable)</p>
-                    <p><span style={{color:'white'}}>Cons</span> = consistance (haut = fiable)</p>
-                    <p><span style={{color:'#fb923c'}}>⚠️</span> = données trop volatiles pour prédire</p>
+                    <p><span className="green">Barres vertes</span> = OVER la ligne | <span className="red">Rouges</span> = UNDER</p>
+                    <p><span style={{color:'#fbbf24'}}>Ligne jaune</span> = Line du bookmaker</p>
+                    <p><span className="cyan">σ</span> = écart-type | <span className="green">R²</span> = tendance | Cons = consistance</p>
                 </div>
             )}
         </div>
