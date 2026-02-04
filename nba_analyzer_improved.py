@@ -1,17 +1,16 @@
 """
-NBA Betting Analyzer v8.6.1
-- Fixed season to 2025-26
-- Fixed NaN/Inf JSON serialization
+NBA Betting Analyzer v9.0
+- Analyzes ALL players (no 15 limit)
+- Added: rest days, pace, fatigue, adjusted probabilities
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import numpy as np
 from scipy import stats as scipy_stats
 import time
-import json
 import math
 
 app = Flask(__name__)
@@ -24,6 +23,7 @@ ODDS_BASE_URL = "https://api.the-odds-api.com/v4"
 BDL_BASE_URL = "https://api.balldontlie.io/v1"
 
 PLAYER_ID_CACHE = {}
+PLAYER_GAMES_CACHE = {}
 DEBUG_LOG = []
 
 DEFENSIVE_RATINGS = {
@@ -59,9 +59,44 @@ DEFENSIVE_RATINGS = {
     'Washington Wizards': 116.5, 'WAS': 116.5
 }
 
+TEAM_PACE = {
+    'Indiana Pacers': 103.2, 'IND': 103.2,
+    'Atlanta Hawks': 101.8, 'ATL': 101.8,
+    'Milwaukee Bucks': 101.5, 'MIL': 101.5,
+    'Sacramento Kings': 101.2, 'SAC': 101.2,
+    'New Orleans Pelicans': 100.8, 'NOP': 100.8,
+    'Utah Jazz': 100.5, 'UTA': 100.5,
+    'Minnesota Timberwolves': 100.2, 'MIN': 100.2,
+    'Denver Nuggets': 99.8, 'DEN': 99.8,
+    'Golden State Warriors': 99.5, 'GSW': 99.5,
+    'Boston Celtics': 99.2, 'BOS': 99.2,
+    'Dallas Mavericks': 99.0, 'DAL': 99.0,
+    'Phoenix Suns': 98.8, 'PHX': 98.8,
+    'Los Angeles Lakers': 98.5, 'LAL': 98.5,
+    'Oklahoma City Thunder': 98.2, 'OKC': 98.2,
+    'Brooklyn Nets': 98.0, 'BKN': 98.0,
+    'Chicago Bulls': 97.8, 'CHI': 97.8,
+    'Toronto Raptors': 97.5, 'TOR': 97.5,
+    'Houston Rockets': 97.2, 'HOU': 97.2,
+    'Portland Trail Blazers': 97.0, 'POR': 97.0,
+    'San Antonio Spurs': 96.8, 'SAS': 96.8,
+    'Detroit Pistons': 96.5, 'DET': 96.5,
+    'Washington Wizards': 96.2, 'WAS': 96.2,
+    'Charlotte Hornets': 96.0, 'CHA': 96.0,
+    'New York Knicks': 95.8, 'NYK': 95.8,
+    'Los Angeles Clippers': 95.5, 'LAC': 95.5,
+    'Miami Heat': 95.2, 'MIA': 95.2,
+    'Cleveland Cavaliers': 95.0, 'CLE': 95.0,
+    'Philadelphia 76ers': 94.8, 'PHI': 94.8,
+    'Memphis Grizzlies': 94.5, 'MEM': 94.5,
+    'Orlando Magic': 94.2, 'ORL': 94.2
+}
+
+LEAGUE_AVG_PACE = 98.5
+LEAGUE_AVG_DEF_RATING = 112.0
+
 
 def to_python(obj):
-    """Convert numpy types to Python native types recursively, handling NaN/Inf"""
     if isinstance(obj, dict):
         return {k: to_python(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -70,25 +105,20 @@ def to_python(obj):
         return int(obj)
     elif isinstance(obj, (np.floating, np.float64, np.float32)):
         val = float(obj)
-        if math.isnan(val) or math.isinf(val):
-            return 0.0
-        return val
+        return 0.0 if math.isnan(val) or math.isinf(val) else val
     elif isinstance(obj, float):
-        if math.isnan(obj) or math.isinf(obj):
-            return 0.0
-        return obj
+        return 0.0 if math.isnan(obj) or math.isinf(obj) else obj
     elif isinstance(obj, (np.bool_, bool)):
         return True if obj else False
     elif isinstance(obj, np.ndarray):
         return [to_python(v) for v in obj.tolist()]
-    else:
-        return obj
+    return obj
 
 
 def log_debug(msg):
     ts = datetime.now().strftime('%H:%M:%S')
     DEBUG_LOG.append(f"[{ts}] {msg}")
-    if len(DEBUG_LOG) > 100:
+    if len(DEBUG_LOG) > 200:
         DEBUG_LOG.pop(0)
 
 
@@ -100,44 +130,48 @@ def get_defense_rating(team):
     for k, v in DEFENSIVE_RATINGS.items():
         if k.lower() in team.lower() or team.lower() in k.lower():
             return v
-    return 112.0
+    return LEAGUE_AVG_DEF_RATING
+
+
+def get_team_pace(team):
+    for k, v in TEAM_PACE.items():
+        if k.lower() in team.lower() or team.lower() in k.lower():
+            return v
+    return LEAGUE_AVG_PACE
 
 
 def get_defense_category(rating):
     if rating < 108:
-        return {'category': 'ELITE', 'emoji': '🔒', 'impact': -2}
+        return {'category': 'ELITE', 'emoji': '🔒', 'impact': -2.5}
     elif rating < 111:
-        return {'category': 'GOOD', 'emoji': '🛡️', 'impact': -1}
+        return {'category': 'GOOD', 'emoji': '🛡️', 'impact': -1.0}
     elif rating < 114:
         return {'category': 'AVERAGE', 'emoji': '⚖️', 'impact': 0}
     elif rating < 116:
-        return {'category': 'POOR', 'emoji': '🎯', 'impact': 1}
+        return {'category': 'POOR', 'emoji': '🎯', 'impact': 1.5}
     else:
-        return {'category': 'BAD', 'emoji': '🔥', 'impact': 2}
+        return {'category': 'BAD', 'emoji': '🔥', 'impact': 2.5}
+
+
+def get_pace_impact(opp_pace):
+    diff = opp_pace - LEAGUE_AVG_PACE
+    return round(diff / 2, 1)
 
 
 def bdl_request(endpoint, params=None, retries=3):
-    headers = {}
-    if BALLDONTLIE_API_KEY:
-        headers['Authorization'] = BALLDONTLIE_API_KEY
+    headers = {'Authorization': BALLDONTLIE_API_KEY} if BALLDONTLIE_API_KEY else {}
     for attempt in range(retries):
         try:
-            url = f"{BDL_BASE_URL}/{endpoint}"
-            log_debug(f"BDL request: {endpoint}")
-            response = requests.get(url, headers=headers, params=params, timeout=15)
+            response = requests.get(f"{BDL_BASE_URL}/{endpoint}", headers=headers, params=params, timeout=15)
             if response.status_code == 200:
-                time.sleep(0.5)
+                time.sleep(0.3)
                 return response.json()
             elif response.status_code == 429:
-                wait = 3 * (attempt + 1)
-                log_debug(f"BDL API: Rate limited, waiting {wait}s...")
-                time.sleep(wait)
+                time.sleep(2 * (attempt + 1))
             else:
-                log_debug(f"BDL API error: {response.status_code}")
                 return None
-        except Exception as e:
-            log_debug(f"BDL request error: {str(e)[:50]}")
-            time.sleep(2)
+        except:
+            time.sleep(1)
     return None
 
 
@@ -152,35 +186,22 @@ def search_player(name):
             full_name = f"{player['first_name']} {player['last_name']}"
             p_norm = normalize_name(full_name)
             team_data = player.get('team')
-            team_abbr = 'N/A'
-            if team_data and isinstance(team_data, dict):
-                team_abbr = team_data.get('abbreviation', 'N/A')
+            team_abbr = team_data.get('abbreviation', 'N/A') if team_data and isinstance(team_data, dict) else 'N/A'
             PLAYER_ID_CACHE[p_norm] = {
                 'id': int(player['id']),
                 'name': str(full_name),
-                'team': str(team_abbr)
+                'team': str(team_abbr),
+                'position': str(player.get('position', 'N/A'))
             }
             if p_norm == norm_name or norm_name in p_norm or p_norm in norm_name:
-                log_debug(f"Found player: {full_name} (ID: {player['id']})")
                 return PLAYER_ID_CACHE[p_norm]
     return None
 
 
-def get_player_season_avg(player_id):
-    data = bdl_request("season_averages", {"season": 2025, "player_id": int(player_id)})
-    if data and 'data' in data and len(data['data']) > 0:
-        stats = data['data'][0]
-        return {
-            'pts': float(stats.get('pts') or 0),
-            'ast': float(stats.get('ast') or 0),
-            'reb': float(stats.get('reb') or 0),
-            'gp': int(stats.get('games_played') or 0),
-            'min': str(stats.get('min') or '0')
-        }
-    return None
-
-
 def get_player_game_log(player_id, stat_type='points'):
+    cache_key = f"{player_id}_{stat_type}"
+    if cache_key in PLAYER_GAMES_CACHE:
+        return PLAYER_GAMES_CACHE[cache_key]
     stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
     stat_col = stat_map.get(stat_type, 'pts')
     data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2025, "per_page": 30})
@@ -207,97 +228,108 @@ def get_player_game_log(player_id, stat_type='points'):
             'date': str(game_data.get('date', '') or '')
         })
     games.sort(key=lambda x: x['date'], reverse=True)
-    log_debug(f"Got {len(games)} games for player {player_id}")
+    PLAYER_GAMES_CACHE[cache_key] = games
     return games if games else None
 
 
-def analyze_game_log(games, line):
+def calculate_rest_days(games):
+    if not games or len(games) < 1:
+        return 2
+    try:
+        last_game = datetime.strptime(games[0]['date'][:10], '%Y-%m-%d')
+        return min((datetime.now() - last_game).days, 7)
+    except:
+        return 2
+
+
+def is_back_to_back(games):
+    if not games:
+        return False
+    try:
+        last_game = datetime.strptime(games[0]['date'][:10], '%Y-%m-%d')
+        return (datetime.now() - last_game).days <= 1
+    except:
+        return False
+
+
+def calculate_fatigue_factor(games):
+    if not games or len(games) < 5:
+        return 0
+    avg_mins = np.mean([g['minutes'] for g in games[:5]])
+    if avg_mins > 38:
+        return -1.5
+    elif avg_mins > 36:
+        return -0.5
+    elif avg_mins < 28:
+        return 0.5
+    return 0
+
+def analyze_game_log(games, line, opponent=None):
     if not games or len(games) < 5:
         return None
     values = [float(g['stat']) for g in games if g['stat'] is not None]
     if len(values) < 5:
         return None
-    
     arr = np.array(values, dtype=float)
-    mean_val = float(np.mean(arr))
-    std_val = float(np.std(arr))
-    median_val = float(np.median(arr))
-    q1_val = float(np.percentile(arr, 25))
-    q3_val = float(np.percentile(arr, 75))
-    iqr = q3_val - q1_val
-    clean = arr[(arr >= q1_val-1.5*iqr) & (arr <= q3_val+1.5*iqr)]
+    mean_val, std_val, median_val = float(np.mean(arr)), float(np.std(arr)), float(np.median(arr))
+    q1, q3 = float(np.percentile(arr, 25)), float(np.percentile(arr, 75))
+    iqr = q3 - q1
+    clean = arr[(arr >= q1-1.5*iqr) & (arr <= q3+1.5*iqr)]
     clean_mean = float(np.mean(clean)) if len(clean) > 0 else mean_val
-    
-    x = np.arange(len(arr))
+    clean_std = float(np.std(clean)) if len(clean) > 0 else std_val
     try:
-        slope, intercept, r_value, p_value_trend, std_err = scipy_stats.linregress(x, arr)
-        r_squared = round(float(r_value ** 2), 3)
-        trend_slope = round(float(slope), 3)
+        slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(np.arange(len(arr)), arr)
+        r_squared, trend_slope = round(float(r_value ** 2), 3), round(float(slope), 3)
     except:
-        r_squared = 0.0
-        trend_slope = 0.0
-    
-    over_count = int(np.sum(arr > line))
-    total = len(values)
+        r_squared, trend_slope = 0.0, 0.0
+    over_count, total = int(np.sum(arr > line)), len(values)
     over_prob = (over_count / total) * 100
-    
     try:
         chi2, p_val = scipy_stats.chisquare([over_count, total-over_count], [total/2, total/2])
-        chi_ok = True if float(p_val) > 0.05 else False
-        p_val = float(p_val)
+        chi_ok, p_val = float(p_val) > 0.05, float(p_val)
     except:
-        chi_ok = True
-        p_val = 1.0
-    
-    kelly = min(25, max(0, ((over_prob/100) - 0.524) / 0.91) * 100) if over_prob > 50 else 0
-    
+        chi_ok, p_val = True, 1.0
+    rest_days, b2b, fatigue = calculate_rest_days(games), is_back_to_back(games), calculate_fatigue_factor(games)
+    rest_impact = 1.0 if rest_days >= 3 else (0.5 if rest_days == 2 else (-1.5 if b2b else 0))
+    opp_def_impact, opp_pace_impact = 0, 0
+    if opponent:
+        def_info = get_defense_category(get_defense_rating(opponent))
+        opp_def_impact, opp_pace_impact = def_info['impact'], get_pace_impact(get_team_pace(opponent))
+    total_adj = rest_impact + fatigue + opp_def_impact + opp_pace_impact
+    adjusted_mean = clean_mean + total_adj
+    adjusted_over_prob = (1 - scipy_stats.norm.cdf((line - adjusted_mean) / clean_std)) * 100 if clean_std > 0 else over_prob
+    kelly = min(25, max(0, ((adjusted_over_prob/100) - 0.524) / 0.91 * 100)) if adjusted_over_prob > 52.4 else 0
+    trend_dir = 'STABLE'
     if len(values) >= 10:
-        recent_5 = float(np.mean(arr[:5]))
-        prev_5 = float(np.mean(arr[5:10]))
-        if recent_5 > prev_5 * 1.05:
-            trend_dir = 'UP'
-        elif recent_5 < prev_5 * 0.95:
-            trend_dir = 'DOWN'
-        else:
-            trend_dir = 'STABLE'
-    else:
-        trend_dir = 'STABLE'
-    
+        recent_5, prev_5 = float(np.mean(arr[:5])), float(np.mean(arr[5:10]))
+        trend_dir = 'UP' if recent_5 > prev_5 * 1.05 else ('DOWN' if recent_5 < prev_5 * 0.95 else 'STABLE')
     return {
-        'games_analyzed': int(total),
-        'mean': round(mean_val, 1),
-        'median': round(median_val, 1),
-        'std': round(std_val, 2),
-        'clean_mean': round(clean_mean, 1),
-        'outliers_removed': int(len(values) - len(clean)),
+        'games_analyzed': int(total), 'mean': round(mean_val, 1), 'median': round(median_val, 1),
+        'std': round(std_val, 2), 'clean_mean': round(clean_mean, 1), 'clean_std': round(clean_std, 2),
+        'adjusted_mean': round(adjusted_mean, 1), 'outliers_removed': int(len(values) - len(clean)),
         'avg_last_5': round(float(np.mean(arr[:5])), 1),
         'avg_last_10': round(float(np.mean(arr[:10])), 1) if len(values) >= 10 else round(mean_val, 1),
-        'min_val': round(float(np.min(arr)), 1),
-        'max_val': round(float(np.max(arr)), 1),
-        'r_squared': r_squared,
-        'trend_slope': trend_slope,
-        'trend': str(trend_dir),
-        'consistency': round(max(0, 100 - (std_val / mean_val * 100)), 1) if mean_val > 0 else 50.0,
-        'over_probability': round(over_prob, 1),
-        'under_probability': round(100 - over_prob, 1),
-        'over_count': int(over_count),
-        'under_count': int(total - over_count),
-        'chi_ok': chi_ok,
-        'chi_p_value': round(p_val, 4),
-        'kelly_criterion': round(float(kelly), 1)
+        'min_val': round(float(np.min(arr)), 1), 'max_val': round(float(np.max(arr)), 1),
+        'r_squared': r_squared, 'trend_slope': trend_slope, 'trend': str(trend_dir),
+        'consistency': round(max(0, 100 - (clean_std / clean_mean * 100)), 1) if clean_mean > 0 else 50.0,
+        'over_probability': round(over_prob, 1), 'adjusted_over_probability': round(adjusted_over_prob, 1),
+        'under_probability': round(100 - over_prob, 1), 'adjusted_under_probability': round(100 - adjusted_over_prob, 1),
+        'over_count': int(over_count), 'under_count': int(total - over_count),
+        'chi_ok': chi_ok, 'chi_p_value': round(p_val, 4), 'kelly_criterion': round(float(kelly), 1),
+        'rest_days': rest_days, 'is_b2b': b2b, 'rest_impact': round(rest_impact, 1),
+        'fatigue_impact': round(fatigue, 1), 'defense_impact': round(opp_def_impact, 1),
+        'pace_impact': round(opp_pace_impact, 1), 'total_adjustment': round(total_adj, 1)
     }
 
 
 def get_nba_games():
     try:
-        params = {'apiKey': ODDS_API_KEY, 'regions': 'us', 'markets': 'h2h', 'oddsFormat': 'american'}
+        params = {'apiKey': ODDS_API_KEY, 'regions': 'us', 'markets': 'h2h,spreads,totals', 'oddsFormat': 'american'}
         response = requests.get(f"{ODDS_BASE_URL}/sports/basketball_nba/odds", params=params, timeout=10)
         if response.status_code == 200:
-            games = response.json()
-            log_debug(f"Found {len(games)} games from Odds API")
-            return games
-    except Exception as e:
-        log_debug(f"Odds API error: {e}")
+            return response.json()
+    except:
+        pass
     return []
 
 
@@ -305,12 +337,22 @@ def get_player_props(stat_type='points'):
     games = get_nba_games()
     if not games:
         return [], {}
-    all_props = []
-    game_info = {}
+    all_props, game_info = [], {}
     market = {'points': 'player_points', 'assists': 'player_assists', 'rebounds': 'player_rebounds'}.get(stat_type, 'player_points')
-    for game in games[:10]:
+    for game in games[:12]:
         gid = game['id']
-        game_info[gid] = {'home_team': str(game.get('home_team', '')), 'away_team': str(game.get('away_team', ''))}
+        spread, total = None, None
+        for bk in game.get('bookmakers', []):
+            for mk in bk.get('markets', []):
+                if mk['key'] == 'spreads':
+                    for oc in mk.get('outcomes', []):
+                        if oc['name'] == game.get('home_team'):
+                            spread = oc.get('point', 0)
+                elif mk['key'] == 'totals':
+                    for oc in mk.get('outcomes', []):
+                        if oc['name'] == 'Over':
+                            total = oc.get('point', 0)
+        game_info[gid] = {'home_team': str(game.get('home_team', '')), 'away_team': str(game.get('away_team', '')), 'spread': spread, 'total': total}
         try:
             params = {'apiKey': ODDS_API_KEY, 'regions': 'us', 'markets': market, 'oddsFormat': 'american'}
             response = requests.get(f"{ODDS_BASE_URL}/sports/basketball_nba/events/{gid}/odds", params=params, timeout=10)
@@ -320,10 +362,7 @@ def get_player_props(stat_type='points'):
                 for bk in data.get('bookmakers', []):
                     for mk in bk.get('markets', []):
                         for oc in mk.get('outcomes', []):
-                            p = oc.get('description', '')
-                            ln = oc.get('point', 0)
-                            pr = oc.get('price', 0)
-                            tp = oc.get('name', '')
+                            p, ln, pr, tp = oc.get('description', ''), oc.get('point', 0), oc.get('price', 0), oc.get('name', '')
                             if p and ln:
                                 if p not in player_best:
                                     player_best[p] = {'player': str(p), 'game_id': gid, 'stat_type': stat_type, 'lines': []}
@@ -333,149 +372,75 @@ def get_player_props(stat_type='points'):
             continue
     log_debug(f"Found {len(all_props)} {stat_type} props")
     return all_props, game_info
-def analyze_player_prop(player_name, stat_type, line):
+
+
+def analyze_player_prop(player_name, stat_type, line, opponent=None):
     player_info = search_player(player_name)
     if not player_info:
-        log_debug(f"Player not found: {player_name}")
         return None
-    player_id = player_info['id']
-    games = get_player_game_log(player_id, stat_type)
+    games = get_player_game_log(player_info['id'], stat_type)
     if not games:
-        log_debug(f"No games found for {player_name}")
         return None
-    season_avg = get_player_season_avg(player_id)
-    analysis = analyze_game_log(games, line)
+    analysis = analyze_game_log(games, line, opponent)
     if not analysis:
         return None
-    stat_key = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}.get(stat_type, 'pts')
-    season_val = float(season_avg.get(stat_key, 0)) if season_avg else float(analysis['mean'])
-    games_played = int(season_avg.get('gp', len(games))) if season_avg else len(games)
-    return {
-        'player_id': int(player_id),
-        'player_name': str(player_info['name']),
-        'team': str(player_info.get('team', 'N/A')),
-        'season_avg': season_val,
-        'games_played': games_played,
-        'analysis': analysis
-    }
+    return {'player_id': int(player_info['id']), 'player_name': str(player_info['name']),
+            'team': str(player_info.get('team', 'N/A')), 'position': str(player_info.get('position', 'N/A')), 'analysis': analysis}
 
 
 def deep_analyze_props(props, game_info, stat_type, min_edge=5):
-    opps = []
-    star_players = [
-        'lebron james', 'stephen curry', 'kevin durant', 'giannis antetokounmpo',
-        'luka doncic', 'nikola jokic', 'joel embiid', 'jayson tatum', 'damian lillard',
-        'anthony davis', 'devin booker', 'donovan mitchell', 'jimmy butler', 'kyrie irving',
-        'paul george', 'kawhi leonard', 'trae young', 'ja morant', 'zion williamson',
-        'anthony edwards', 'tyrese haliburton', 'shai gilgeous-alexander', 'lamelo ball',
-        'de\'aaron fox', 'darius garland', 'cade cunningham', 'paolo banchero',
-        'brandon ingram', 'julius randle', 'bam adebayo', 'karl-anthony towns',
-        'jaylen brown', 'jalen brunson', 'fred vanvleet', 'chet holmgren'
-    ]
-    
-    def is_star(p):
-        return normalize_name(p['player']) in star_players
-    
-    sorted_props = sorted(props, key=lambda p: (0 if is_star(p) else 1))
-    analyzed_count = 0
-    max_analyze = 15
-    
-    for prop in sorted_props:
-        if analyzed_count >= max_analyze:
-            log_debug(f"Reached max {max_analyze} players analyzed")
-            break
-        player_name = prop['player']
+    opps, analyzed = [], 0
+    log_debug(f"Analyzing ALL {len(props)} props...")
+    for prop in props:
+        gi_data = game_info.get(prop['game_id'], {})
+        opponent = gi_data.get('away_team', '') or gi_data.get('home_team', '')
         overs = [l for l in prop['lines'] if l['type'] == 'Over']
         unders = [l for l in prop['lines'] if l['type'] == 'Under']
         if not overs:
             continue
-        best_over = min(overs, key=lambda x: x['line'])
-        best_under = max(unders, key=lambda x: x['line']) if unders else None
+        best_over, best_under = min(overs, key=lambda x: x['line']), max(unders, key=lambda x: x['line']) if unders else None
         line = best_over['line']
-        result = analyze_player_prop(player_name, stat_type, line)
-        analyzed_count += 1
+        result = analyze_player_prop(prop['player'], stat_type, line, opponent)
+        analyzed += 1
         if not result:
             continue
         a = result['analysis']
-        oe = ((a['clean_mean'] - line) / line) * 100
-        ue = ((line - a['clean_mean']) / line) * 100 if best_under else 0
-        
-        if a['over_probability'] > 52 and oe >= min_edge:
-            rec, edge, bl = 'OVER', oe, best_over
-        elif a['under_probability'] > 52 and ue >= min_edge:
-            rec, edge, bl = 'UNDER', ue, best_under
+        adj_over, adj_under = a['adjusted_over_probability'], a['adjusted_under_probability']
+        oe, ue = ((a['adjusted_mean'] - line) / line) * 100, ((line - a['adjusted_mean']) / line) * 100
+        if adj_over > 52 and oe >= min_edge:
+            rec, edge, bl, prob = 'OVER', oe, best_over, adj_over
+        elif adj_under > 52 and ue >= min_edge:
+            rec, edge, bl, prob = 'UNDER', ue, best_under, adj_under
         else:
             continue
-        
-        sc = 0
-        sc += 2 if edge >= 10 else (1 if edge >= 7 else 0)
-        sc += 2 if a['over_probability'] >= 65 or a['under_probability'] >= 65 else (1 if a['over_probability'] >= 55 else 0)
-        sc += 1 if a['consistency'] >= 70 else 0
-        sc += 1 if a['chi_ok'] else 0
-        sc += 1 if result['games_played'] >= 20 else 0
-        sc += 1 if a['r_squared'] >= 0.1 else 0
-        conf = 'HIGH' if sc >= 5 else ('MEDIUM' if sc >= 3 else 'LOW')
-        
-        gi_data = game_info.get(prop['game_id'], {})
-        home_team = gi_data.get('home_team', '')
-        away_team = gi_data.get('away_team', '')
-        opponent = away_team if home_team else away_team
-        def_rating = get_defense_rating(opponent) if opponent else 112.0
+        sc = (2 if edge >= 10 else (1 if edge >= 7 else 0)) + (2 if prob >= 65 else (1 if prob >= 55 else 0))
+        sc += (1 if a['consistency'] >= 70 else 0) + (1 if a['chi_ok'] else 0) + (1 if a['games_analyzed'] >= 15 else 0)
+        sc += (1 if a['r_squared'] >= 0.1 else 0) + (1 if not a['is_b2b'] else 0)
+        conf = 'HIGH' if sc >= 6 else ('MEDIUM' if sc >= 3 else 'LOW')
+        def_rating, opp_pace = get_defense_rating(opponent) if opponent else LEAGUE_AVG_DEF_RATING, get_team_pace(opponent) if opponent else LEAGUE_AVG_PACE
         def_info = get_defense_category(def_rating)
-        adjusted_edge = edge + def_info['impact']
-        
-        opp = {
-            'player': str(result['player_name']),
-            'team': str(result.get('team', 'N/A')),
-            'stat_type': str(stat_type),
-            'game_info': {
-                'home_team': str(gi_data.get('home_team', '')),
-                'away_team': str(gi_data.get('away_team', ''))
-            },
-            'season_avg': round(float(result['season_avg']), 1),
-            'games_played': int(result['games_played']),
-            'line_analysis': {
-                'bookmaker_line': float(bl['line']),
-                'bookmaker': str(bl['book']).upper(),
-                'odds': int(bl['price']),
-                'recommendation': str(rec),
-                'edge': round(float(edge), 1),
-                'adjusted_edge': round(float(adjusted_edge), 1),
-                'over_probability': float(a['over_probability']),
-                'under_probability': float(a['under_probability']),
-                'bet_confidence': str(conf),
-                'kelly_criterion': float(a['kelly_criterion'])
-            },
-            'defense_analysis': {
-                'opponent': str(opponent) if opponent else 'Unknown',
-                'def_rating': float(def_rating),
-                'category': str(def_info['category']),
-                'emoji': str(def_info['emoji']),
-                'impact_pts': int(def_info['impact']),
-                'note': f"{def_info['emoji']} {def_info['category']} defense ({def_rating})"
-            },
-            'deep_stats': {
-                'mean': float(a['mean']),
-                'clean_mean': float(a['clean_mean']),
-                'median': float(a['median']),
-                'std': float(a['std']),
-                'min': float(a['min_val']),
-                'max': float(a['max_val']),
-                'avg_last_5': float(a['avg_last_5']),
-                'avg_last_10': float(a['avg_last_10']),
-                'r_squared': float(a['r_squared']),
-                'trend_slope': float(a['trend_slope']),
-                'trend': str(a['trend']),
-                'consistency': float(a['consistency']),
-                'games_analyzed': int(a['games_analyzed']),
-                'outliers_removed': int(a['outliers_removed']),
-                'over_count': int(a['over_count']),
-                'under_count': int(a['under_count']),
-                'chi_ok': True if a['chi_ok'] else False,
-                'chi_p_value': float(a['chi_p_value'])
-            }
-        }
-        opps.append(opp)
+        opps.append({
+            'player': str(result['player_name']), 'team': str(result.get('team', 'N/A')),
+            'position': str(result.get('position', 'N/A')), 'stat_type': str(stat_type),
+            'game_info': {'home_team': str(gi_data.get('home_team', '')), 'away_team': str(gi_data.get('away_team', '')), 'spread': gi_data.get('spread'), 'total': gi_data.get('total')},
+            'line_analysis': {'bookmaker_line': float(bl['line']), 'bookmaker': str(bl['book']).upper(), 'odds': int(bl['price']),
+                'recommendation': str(rec), 'edge': round(float(edge), 1), 'over_probability': float(a['over_probability']),
+                'under_probability': float(a['under_probability']), 'adjusted_over_prob': float(a['adjusted_over_probability']),
+                'adjusted_under_prob': float(a['adjusted_under_probability']), 'bet_confidence': str(conf), 'kelly_criterion': float(a['kelly_criterion'])},
+            'context_factors': {'rest_days': int(a['rest_days']), 'is_b2b': a['is_b2b'], 'rest_impact': float(a['rest_impact']),
+                'fatigue_impact': float(a['fatigue_impact']), 'defense_impact': float(a['defense_impact']),
+                'pace_impact': float(a['pace_impact']), 'total_adjustment': float(a['total_adjustment'])},
+            'defense_analysis': {'opponent': str(opponent) if opponent else 'Unknown', 'def_rating': float(def_rating),
+                'opp_pace': float(opp_pace), 'category': str(def_info['category']), 'emoji': str(def_info['emoji'])},
+            'deep_stats': {'mean': float(a['mean']), 'clean_mean': float(a['clean_mean']), 'adjusted_mean': float(a['adjusted_mean']),
+                'median': float(a['median']), 'std': float(a['std']), 'clean_std': float(a['clean_std']),
+                'min': float(a['min_val']), 'max': float(a['max_val']), 'avg_last_5': float(a['avg_last_5']),
+                'avg_last_10': float(a['avg_last_10']), 'r_squared': float(a['r_squared']), 'trend_slope': float(a['trend_slope']),
+                'trend': str(a['trend']), 'consistency': float(a['consistency']), 'games_analyzed': int(a['games_analyzed']),
+                'outliers_removed': int(a['outliers_removed']), 'over_count': int(a['over_count']), 'under_count': int(a['under_count']),
+                'chi_ok': a['chi_ok'], 'chi_p_value': float(a['chi_p_value'])}
+        })
+    log_debug(f"Analyzed {analyzed}, found {len(opps)} opportunities")
     opps.sort(key=lambda x: x['line_analysis']['edge'], reverse=True)
     return opps
 
@@ -483,66 +448,30 @@ def deep_analyze_props(props, game_info, stat_type, min_edge=5):
 @app.route('/api/daily-opportunities', methods=['GET'])
 def daily_opportunities():
     try:
-        min_edge = float(request.args.get('min_edge', 5))
-        min_conf = request.args.get('min_confidence', 'LOW')
+        min_edge, min_conf = float(request.args.get('min_edge', 5)), request.args.get('min_confidence', 'LOW')
         stat_type = request.args.get('stat_type', 'points')
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
-        log_debug(f"=== SCAN v8.6.1: {stat_type} ===")
-        log_debug(f"BDL key set: {bool(BALLDONTLIE_API_KEY)}")
+        log_debug(f"=== SCAN v9.0: {stat_type} (ALL PLAYERS) ===")
         if not BALLDONTLIE_API_KEY:
-            return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set', 'debug_log': DEBUG_LOG[-15:]}), 500
+            return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set'}), 500
         props, gi = get_player_props(stat_type)
         if not props:
-            return jsonify({'status': 'SUCCESS', 'message': 'No props available', 'opportunities': [], 'total_props': 0, 'debug_log': DEBUG_LOG[-15:]})
+            return jsonify({'status': 'SUCCESS', 'message': 'No props', 'opportunities': [], 'total_props': 0})
         opps = deep_analyze_props(props, gi, stat_type, min_edge)
         cl = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
         filtered = [o for o in opps if cl.get(o['line_analysis']['bet_confidence'], 0) >= cl.get(min_conf, 1)]
-        result = {
-            'status': 'SUCCESS',
-            'stat_type': str(stat_type),
-            'total_props': int(len(props)),
-            'players_in_db': int(len(PLAYER_ID_CACHE)),
-            'candidates_analyzed': int(min(15, len(props))),
-            'opportunities_found': int(len(filtered)),
-            'opportunities': filtered,
-            'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'api_source': 'balldontlie.io',
-            'season': '2025-26',
-            'debug_log': DEBUG_LOG[-15:]
-        }
-        return jsonify(to_python(result))
+        return jsonify(to_python({'status': 'SUCCESS', 'version': '9.0', 'stat_type': str(stat_type),
+            'total_props': int(len(props)), 'players_analyzed': int(len(props)), 'opportunities_found': int(len(filtered)),
+            'opportunities': filtered, 'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'season': '2025-26'}))
     except Exception as e:
         import traceback
-        tb = traceback.format_exc()
-        log_debug(f"ERROR: {e}")
-        log_debug(tb[:300])
-        return jsonify({'status': 'ERROR', 'message': str(e), 'traceback': tb[:500], 'debug_log': DEBUG_LOG[-20:]}), 500
+        return jsonify({'status': 'ERROR', 'message': str(e), 'traceback': traceback.format_exc()[:500]}), 500
 
 
-@app.route('/api/debug', methods=['GET'])
-def debug_endpoint():
-    r = {'timestamp': datetime.now().isoformat(), 'tests': {}, 'version': '8.6.1'}
-    r['env_check'] = {
-        'BALLDONTLIE_API_KEY': True if BALLDONTLIE_API_KEY else False,
-        'ODDS_API_KEY': True if ODDS_API_KEY else False,
-        'bdl_key_length': int(len(BALLDONTLIE_API_KEY)) if BALLDONTLIE_API_KEY else 0
-    }
-    if BALLDONTLIE_API_KEY:
-        player = search_player("LeBron James")
-        r['tests']['balldontlie'] = {'success': True if player else False, 'api_key_set': True, 'test_player': player}
-        if player:
-            games = get_player_game_log(player['id'], 'points')
-            r['tests']['game_log'] = {'success': True if games else False, 'games_found': int(len(games)) if games else 0}
-    else:
-        r['tests']['balldontlie'] = {'success': False, 'api_key_set': False, 'message': 'Set BALLDONTLIE_API_KEY env var'}
-    games = get_nba_games()
-    r['tests']['odds_api_games'] = {'success': True if len(games) > 0 else False, 'games_found': int(len(games)), 'games': [{'home': str(g.get('home_team', '')), 'away': str(g.get('away_team', ''))} for g in games[:3]]}
-    if games:
-        props, _ = get_player_props('points')
-        r['tests']['odds_api_props'] = {'success': True if len(props) > 0 else False, 'props_found': int(len(props)), 'sample_players': [str(p['player']) for p in props[:5]]}
-    r['debug_log'] = DEBUG_LOG[-20:]
-    return jsonify(to_python(r))
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'healthy', 'version': '9.0', 'features': ['all_players', 'rest_days', 'pace', 'fatigue']})
 
 
 @app.route('/api/odds/usage', methods=['GET'])
@@ -554,33 +483,12 @@ def get_usage():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/health', methods=['GET'])
-def health():
-    return jsonify({
-        'status': 'healthy',
-        'version': '8.6.1',
-        'data_source': 'balldontlie.io',
-        'season': '2025-26',
-        'bdl_key_set': True if BALLDONTLIE_API_KEY else False,
-        'bdl_key_length': int(len(BALLDONTLIE_API_KEY)) if BALLDONTLIE_API_KEY else 0
-    })
-
-
 @app.route('/')
 def home():
-    return jsonify({
-        'app': 'NBA Betting Analyzer',
-        'version': '8.6.1',
-        'season': '2025-26',
-        'data_source': 'balldontlie.io',
-        'bdl_key_set': True if BALLDONTLIE_API_KEY else False
-    })
+    return jsonify({'app': 'NBA Betting Analyzer', 'version': '9.0'})
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting NBA Analyzer v8.6.1")
-    print(f"Season: 2025-26")
-    print(f"BALLDONTLIE_API_KEY set: {bool(BALLDONTLIE_API_KEY)}")
-    print(f"ODDS_API_KEY set: {bool(ODDS_API_KEY)}")
+    print(f"🏀 NBA Analyzer v9.0 - ALL PLAYERS")
     app.run(host='0.0.0.0', port=port, debug=False)
