@@ -1,7 +1,7 @@
 """
-NBA Betting Analyzer v8.6.0
+NBA Betting Analyzer v8.6.1
+- Fixed season to 2025-26
 - Fixed NaN/Inf JSON serialization
-- Ultra-defensive JSON serialization
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -167,7 +167,7 @@ def search_player(name):
 
 
 def get_player_season_avg(player_id):
-    data = bdl_request("season_averages", {"season": 2024, "player_id": int(player_id)})
+    data = bdl_request("season_averages", {"season": 2025, "player_id": int(player_id)})
     if data and 'data' in data and len(data['data']) > 0:
         stats = data['data'][0]
         return {
@@ -183,7 +183,7 @@ def get_player_season_avg(player_id):
 def get_player_game_log(player_id, stat_type='points'):
     stat_map = {'points': 'pts', 'assists': 'ast', 'rebounds': 'reb'}
     stat_col = stat_map.get(stat_type, 'pts')
-    data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2024, "per_page": 30})
+    data = bdl_request("stats", {"player_ids[]": int(player_id), "seasons[]": 2025, "per_page": 30})
     if not data or 'data' not in data:
         return None
     games = []
@@ -333,11 +333,6 @@ def get_player_props(stat_type='points'):
             continue
     log_debug(f"Found {len(all_props)} {stat_type} props")
     return all_props, game_info
-
-
-# === FIN PARTIE 1 - COLLE LA PARTIE 2 EN DESSOUS ===
-# === PARTIE 2 - COLLE APRÈS LA PARTIE 1 ===
-
 def analyze_player_prop(player_name, stat_type, line):
     player_info = search_player(player_name)
     if not player_info:
@@ -493,7 +488,7 @@ def daily_opportunities():
         stat_type = request.args.get('stat_type', 'points')
         if stat_type not in ['points', 'assists', 'rebounds']:
             stat_type = 'points'
-        log_debug(f"=== SCAN v8.6.0: {stat_type} ===")
+        log_debug(f"=== SCAN v8.6.1: {stat_type} ===")
         log_debug(f"BDL key set: {bool(BALLDONTLIE_API_KEY)}")
         if not BALLDONTLIE_API_KEY:
             return jsonify({'status': 'ERROR', 'message': 'BALLDONTLIE_API_KEY not set', 'debug_log': DEBUG_LOG[-15:]}), 500
@@ -513,7 +508,7 @@ def daily_opportunities():
             'opportunities': filtered,
             'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'api_source': 'balldontlie.io',
-            'season': '2024-25',
+            'season': '2025-26',
             'debug_log': DEBUG_LOG[-15:]
         }
         return jsonify(to_python(result))
@@ -527,7 +522,7 @@ def daily_opportunities():
 
 @app.route('/api/debug', methods=['GET'])
 def debug_endpoint():
-    r = {'timestamp': datetime.now().isoformat(), 'tests': {}, 'version': '8.6.0'}
+    r = {'timestamp': datetime.now().isoformat(), 'tests': {}, 'version': '8.6.1'}
     r['env_check'] = {
         'BALLDONTLIE_API_KEY': True if BALLDONTLIE_API_KEY else False,
         'ODDS_API_KEY': True if ODDS_API_KEY else False,
@@ -563,9 +558,9 @@ def get_usage():
 def health():
     return jsonify({
         'status': 'healthy',
-        'version': '8.6.0',
+        'version': '8.6.1',
         'data_source': 'balldontlie.io',
-        'season': '2024-25',
+        'season': '2025-26',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False,
         'bdl_key_length': int(len(BALLDONTLIE_API_KEY)) if BALLDONTLIE_API_KEY else 0
     })
@@ -575,8 +570,8 @@ def health():
 def home():
     return jsonify({
         'app': 'NBA Betting Analyzer',
-        'version': '8.6.0',
-        'season': '2024-25',
+        'version': '8.6.1',
+        'season': '2025-26',
         'data_source': 'balldontlie.io',
         'bdl_key_set': True if BALLDONTLIE_API_KEY else False
     })
@@ -584,7 +579,8 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting NBA Analyzer v8.6.0")
+    print(f"Starting NBA Analyzer v8.6.1")
+    print(f"Season: 2025-26")
     print(f"BALLDONTLIE_API_KEY set: {bool(BALLDONTLIE_API_KEY)}")
     print(f"ODDS_API_KEY set: {bool(ODDS_API_KEY)}")
     app.run(host='0.0.0.0', port=port, debug=False)
